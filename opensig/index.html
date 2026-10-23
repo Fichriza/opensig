@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" data-theme="classic">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenSig</title>
+  <meta name="description" content="Browser-based signal analysis workbench with linked FFT, spectrogram, filter and instrument windows.">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="app">
+    <nav id="menubar" aria-label="Main menu">
+      <span class="brand" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M2 12h3l2-6 3 12 3-9 2 5 2-2h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>OpenSig</span>
+    </nav>
+    <div id="toolbar" role="toolbar" aria-label="Toolbar"></div>
+    <div id="wstabs" role="tablist" aria-label="Workspaces"></div>
+    <div id="main">
+      <main id="desktop" aria-label="Workspace">
+        <div id="welcome">
+          <h1>OpenSig</h1>
+          <p class="lede">Signal analysis with linked windows. Every FFT, spectrogram, filter or instrument you create is a child of the window it was made from, and recomputes as soon as you zoom or change its parent.</p>
+          <div class="welcome-actions">
+            <button class="btn primary" id="welcome-open">Open signal…</button>
+            <button class="btn" id="welcome-gen">Signal generator…</button>
+            <button class="btn" id="welcome-acq">Live audio input…</button>
+          </div>
+          <p class="hint">Drop WAV, CSV or raw files anywhere in this area. Press F1 for keyboard and mouse controls.</p>
+          <h2>Examples</h2>
+          <ul id="welcome-examples"></ul>
+        </div>
+      </main>
+    </div>
+    <footer id="statusbar"><span id="statusbar-main"></span><span id="statusbar-acq"></span><span id="statusbar-panes"></span></footer>
+  </div>
+  <div id="toasts" aria-live="polite"></div>
+  <input type="file" id="file-input" multiple hidden>
+  <script src="js/dsp.js"></script>
+  <script src="js/io.js"></script>
+  <script src="js/expr.js"></script>
+  <script src="js/plot.js"></script>
+  <script src="js/ops.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/ops2.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/formats.js"></script>
+  <script src="js/host.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/script.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/extras.js"></script>
+  <script src="js/tabs.js"></script>
+  <script src="js/iox.js"></script>
+  <script src="js/follow.js"></script>
+  <script src="js/control.js"></script>
+  <script src="js/style.js"></script>
+  <script src="js/pick.js"></script>
+  <script src="js/table.js"></script>
+  <script src="js/geomath.js"></script>
+  <script src="js/geometry.js"></script>
+  <script src="js/helpdata.js"></script>
+  <script src="js/help.js"></script>
+</body>
+</html>

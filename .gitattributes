@@ -1,0 +1,4 @@
+# LF line endings everywhere, also in Windows checkouts: the Mac build needs LF in .sh / .swift / .plist files
+* text=auto eol=lf
+*.png binary
+*.ico binary

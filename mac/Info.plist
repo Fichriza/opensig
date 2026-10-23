@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key><string>OpenSig</string>
+	<key>CFBundleDisplayName</key><string>OpenSig</string>
+	<key>CFBundleIdentifier</key><string>org.opensig.OpenSig</string>
+	<key>CFBundleExecutable</key><string>OpenSig</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>__VERSION__</string>
+	<key>CFBundleVersion</key><string>__BUILD__</string>
+	<key>CFBundleIconFile</key><string>OpenSig</string>
+	<key>CFBundleDevelopmentRegion</key><string>en</string>
+	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+	<key>LSMinimumSystemVersion</key><string>12.0</string>
+	<key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
+	<key>NSPrincipalClass</key><string>NSApplication</string>
+	<key>NSHighResolutionCapable</key><true/>
+	<key>NSSupportsAutomaticGraphicsSwitching</key><true/>
+	<key>NSHumanReadableCopyright</key><string>OpenSig – independent signal analysis workbench</string>
+	<key>NSMicrophoneUsageDescription</key><string>OpenSig records audio input for live signal analysis (Data acquisition).</string>
+	<!-- the page is served by the app itself at http://localhost -->
+	<key>NSAppTransportSecurity</key>
+	<dict><key>NSAllowsLocalNetworking</key><true/></dict>
+	<!-- "Open With ▸ OpenSig" in Finder; OpenSig is never made the default app for these files -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key><string>Signal or workspace</string>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>wav</string><string>wave</string><string>flac</string><string>mp3</string><string>ogg</string><string>aif</string><string>aiff</string><string>m4a</string>
+				<string>csv</string><string>txt</string><string>dat</string><string>bin</string><string>raw</string><string>sig</string>
+				<string>mat</string><string>npy</string><string>npz</string><string>edf</string><string>bdf</string><string>gdf</string>
+				<string>h5</string><string>hdf5</string><string>nc</string><string>jld2</string><string>uff</string><string>unv</string>
+				<string>osw</string><string>ost</string><string>flt</string><string>flb</string><string>cal</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

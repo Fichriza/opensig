@@ -1,0 +1,5 @@
+# Build output (OpenSig.exe, OpenSig-Setup.exe, OpenSig-mac-source.zip): attach to a GitHub release instead
+desktop/dist/
+mac/dist/
+# Claude Code preview settings
+.claude/
