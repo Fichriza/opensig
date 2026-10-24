@@ -31,6 +31,11 @@ spectrogram of the first channel.*
 *Help ▸ Contents, Index and Search, laid out like a Windows help viewer. F1 opens the page for the window or tab you
 are using.*
 
+### Window styles
+![The same windows in the four window styles](docs/screenshots/window-styles.png)
+*Window ▸ Window style: Standard (top left), Classic grey from the 1990s (top right), Classic blue from the 2000s
+(bottom left) and Glass from the late 2000s (bottom right). The graphs look the same in every style.*
+
 ### Dark mode
 ![Harmonic distortion of a clipped sine in dark mode, with THD gauge and SNR](docs/screenshots/dark-mode.png)
 *Harmonic distortion of a clipped sine: its spectrum, a THD gauge and the signal-to-noise ratio, in dark mode.*
@@ -53,7 +58,8 @@ are using.*
 - **Data in and out** – WAV, FLAC, MP3, OGG, AIFF, M4A, CSV (millions of rows, and files that another program keeps
   writing), raw binary, MATLAB, NumPy, EDF / BDF / GDF, HDF5, UFF / UNV; live audio input; UDP / TCP and serial input
   in the desktop app; export to CSV, WAV, PNG and Excel.
-- **A complete user manual** inside the app, and a classic Windows look with a dark mode.
+- **A complete user manual** inside the app, and a classic Windows look in four window styles – standard, 1990s grey,
+  2000s blue and glass – with a dark mode.
 
 The detailed feature list, file formats, automation commands and technical notes are in
 [`opensig/README.md`](opensig/README.md).

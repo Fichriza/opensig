@@ -696,6 +696,7 @@
     const s = S.settings;
     const v = await dialog({ title: 'Application settings', fields: [
       { type: 'section', label: 'Display' },
+      { key: 'windowStyle', label: 'Window style', type: 'select', options: APP.WINDOW_STYLES, value: s.windowStyle || 'standard', hint: 'also Window ▸ Window style; in dark mode every style uses the dark colours' },
       { key: 'darkMode', label: 'Dark mode', type: 'select', options: [['off', 'Off'], ['on', 'On'], ['system', 'Follow Windows']], value: s.darkMode || 'off', hint: 'also Window ▸ Dark mode (Ctrl+Shift+D)' },
       { key: 'cursorAllWindows', label: 'Display signal cursor simultaneously in all related windows', type: 'check', value: s.cursorAllWindows },
       { key: 'logXSpectra', label: 'Use log X-axis as default for new spectral windows', type: 'check', value: s.logXSpectra },
@@ -959,6 +960,7 @@
       { label: 'Cascade', run: () => APP.arrange('cascade') },
       { label: 'Tile', run: () => APP.arrange('tile') },
       { label: 'Dark mode', key: 'Ctrl+Shift+D', run: () => APP.toggleDark(), checked: () => APP.isDark() },
+      { label: 'Window style', sub: APP.WINDOW_STYLES.map(([k, label]) => ({ label, checked: () => (S.settings.windowStyle || 'standard') === k, run: () => APP.setWindowStyle(k) })) },
       { label: 'Close all', run: async () => { if (S.wins.size && await confirmBox('Close all windows', 'Close all ' + S.wins.size + ' windows?')) [...S.wins.values()].forEach(APP.closeWindow); } }] },
     { label: 'Help', items: [
       { label: 'Keyboard & mouse…', run: () => root.HELP ? root.HELP.open('keys') : helpDialog() },

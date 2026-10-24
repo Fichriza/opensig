@@ -531,3 +531,125 @@ li.sel > .hv-row .hv-lbl { background: var(--hv-sel); border-color: var(--hv-sel
 .geo-peaks { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
 .geo-chip { font: 11px var(--mono); padding: 1px 6px; border: 1px solid var(--geo-line); border-radius: 10px; background: var(--geo-bg); color: var(--geo-ink); cursor: pointer; }
 .geo-chip:hover { border-color: #c00; color: #c00; }
+
+/* ---------- Window styles (Window ▸ Window style, Application settings; data-skin on <html>, set by app.js) ----------
+   "standard" is the Classic look above. The others restyle frames, menus and dialogs in light mode only; dark mode
+   keeps its own colours. Selectors are written out (no CSS nesting) for the WebKit of macOS 12. */
+/* Classic grey: 1990s 3D bevels, navy caption gradient, teal desktop */
+:root[data-skin="grey"]:not([data-dark]) {
+  --bg: #c0c0c0; --desk: #008080; --panel: #c0c0c0; --panel-2: #d4d0c8; --border: #808080; --text: #000; --muted: #404040;
+  --accent: #000080; --accent-ink: #fff; --selection: rgba(0,0,128,.18); --shadow: none;
+  --sans: Tahoma, "MS Sans Serif", "Segoe UI", Arial, sans-serif;
+}
+:root[data-skin="grey"]:not([data-dark]) #menubar, :root[data-skin="grey"]:not([data-dark]) #toolbar, :root[data-skin="grey"]:not([data-dark]) #wstabs, :root[data-skin="grey"]:not([data-dark]) #statusbar { background: #c0c0c0; }
+:root[data-skin="grey"]:not([data-dark]) #toolbar { border-bottom: 1px solid #808080; box-shadow: 0 1px #fff; }
+:root[data-skin="grey"]:not([data-dark]) .menubar-btn:hover, :root[data-skin="grey"]:not([data-dark]) .menubar-btn[aria-expanded="true"] { background: #000080; color: #fff; border-color: transparent; }
+:root[data-skin="grey"]:not([data-dark]) .tb-btn:hover:not(:disabled) { background: #c0c0c0; border-color: #fff #808080 #808080 #fff; }
+:root[data-skin="grey"]:not([data-dark]) .tb-btn.on { background: #d4d0c8; border-color: #808080 #fff #fff #808080; }
+:root[data-skin="grey"]:not([data-dark]) .menu-pop { background: #c0c0c0; border: 0; padding: 3px; box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px #808080, inset 2px 2px #fff, 2px 2px 0 rgba(0,0,0,.25); }
+:root[data-skin="grey"]:not([data-dark]) .menu-item:hover:not(:disabled) { background: #000080; color: #fff; }
+:root[data-skin="grey"]:not([data-dark]) .menu-sep { background: #808080; box-shadow: 0 1px #fff; margin: 4px 2px; }
+:root[data-skin="grey"]:not([data-dark]) .win, :root[data-skin="grey"]:not([data-dark]) .win.active { border: 0; padding: 3px 4px 4px; background: #c0c0c0; box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px #808080, inset 2px 2px #fff; }
+:root[data-skin="grey"]:not([data-dark]) .win-head { margin: 0 -1px 2px; padding: 0 3px 0 4px; min-height: 20px; background: linear-gradient(90deg, #808080, #b5b5b5); color: #d4d0c8; }
+:root[data-skin="grey"]:not([data-dark]) .win.active .win-head { background: linear-gradient(90deg, #000080, #1084d0); color: #fff; }
+:root[data-skin="grey"]:not([data-dark]) .win-title { font-weight: 700; }
+:root[data-skin="grey"]:not([data-dark]) .wb, :root[data-skin="grey"]:not([data-dark]) .wb:hover, :root[data-skin="grey"]:not([data-dark]) .wb[data-act=close], :root[data-skin="grey"]:not([data-dark]) .wb[data-act=close]:hover { width: 18px; height: 16px; border: 0; border-radius: 0; color: #000; background: #c0c0c0; font-size: 9px; font-weight: 700; box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf; }
+:root[data-skin="grey"]:not([data-dark]) .wb[data-act=close] { margin-left: 4px; }
+:root[data-skin="grey"]:not([data-dark]) .wb:active { box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080; }
+:root[data-skin="grey"]:not([data-dark]) .win:not(.active) .wb { opacity: 1; }
+:root[data-skin="grey"]:not([data-dark]) .win-body, :root[data-skin="grey"]:not([data-dark]) .win.active .win-body, :root[data-skin="grey"]:not([data-dark]) .cw-body { background: #fff; border: 2px solid; border-color: #808080 #fff #fff #808080; }
+:root[data-skin="grey"]:not([data-dark]) .win-status { background: #c0c0c0; }
+:root[data-skin="grey"]:not([data-dark]) #statusbar { border-top: 1px solid #fff; }
+:root[data-skin="grey"]:not([data-dark]) .sb-pane { background: #c0c0c0; border: 1px solid; border-color: #808080 #fff #fff #808080; }
+:root[data-skin="grey"]:not([data-dark]) dialog.dlg { background: #c0c0c0; border: 0; padding: 3px; box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px #808080, inset 2px 2px #fff, 4px 4px 0 rgba(0,0,0,.3); }
+:root[data-skin="grey"]:not([data-dark]) .dlg-title { background: linear-gradient(90deg, #000080, #1084d0); color: #fff; font-weight: 700; border-bottom: 0; padding: 3px 6px; }
+:root[data-skin="grey"]:not([data-dark]) .btn, :root[data-skin="grey"]:not([data-dark]) .btn:hover { background: #c0c0c0; color: #000; border: 0; border-radius: 0; box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf; }
+:root[data-skin="grey"]:not([data-dark]) .btn.primary { background: #c0c0c0; color: #000; border: 0; box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf, 0 0 0 1px #0a0a0a; }
+:root[data-skin="grey"]:not([data-dark]) .btn:active { box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080; }
+:root[data-skin="grey"]:not([data-dark]) .dlg-row input[type=text], :root[data-skin="grey"]:not([data-dark]) .dlg-row input[type=number], :root[data-skin="grey"]:not([data-dark]) .dlg-row select, :root[data-skin="grey"]:not([data-dark]) .dlg-row textarea { border: 2px solid; border-color: #808080 #fff #fff #808080; border-radius: 0; background: #fff; }
+:root[data-skin="grey"]:not([data-dark]) .dlg-section { color: #000080; border-bottom-color: #808080; }
+:root[data-skin="grey"]:not([data-dark]) #welcome { background: #c0c0c0; border: 0; border-radius: 0; box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px #808080, inset 2px 2px #fff; }
+:root[data-skin="grey"]:not([data-dark]) .ws-tab { background: #c0c0c0; color: #000; border-color: #fff #808080 #808080 #fff; }
+:root[data-skin="grey"]:not([data-dark]) .ws-tab:hover { background: #d4d0c8; }
+:root[data-skin="grey"]:not([data-dark]) .ws-tab.on { background: #c0c0c0; border-bottom-color: #c0c0c0; font-weight: 700; }
+/* Classic blue: 2000s rounded blue captions, beige panels, buttons with an orange glow */
+:root[data-skin="blue"]:not([data-dark]) {
+  --bg: #ece9d8; --desk: #3a6ea5; --panel: #ece9d8; --panel-2: #f4f3ee; --border: #aca899; --text: #000; --muted: #5a5a5a;
+  --accent: #316ac5; --accent-ink: #fff; --selection: rgba(49,106,197,.2); --shadow: 0 4px 12px rgba(0,0,0,.35);
+  --sans: Tahoma, "Segoe UI", Arial, sans-serif;
+}
+:root[data-skin="blue"]:not([data-dark]) #menubar { background: #ece9d8; border-bottom: 1px solid #fff; }
+:root[data-skin="blue"]:not([data-dark]) #toolbar { background: linear-gradient(#fbfbf9, #e8e6dc); border-bottom: 1px solid #c0bfb4; }
+:root[data-skin="blue"]:not([data-dark]) .menubar-btn:hover, :root[data-skin="blue"]:not([data-dark]) .menubar-btn[aria-expanded="true"] { background: #316ac5; color: #fff; border-color: #316ac5; }
+:root[data-skin="blue"]:not([data-dark]) .tb-btn { border-radius: 3px; }
+:root[data-skin="blue"]:not([data-dark]) .tb-btn:hover:not(:disabled) { background: linear-gradient(#fefefe, #f0efe7); border-color: #b0b0a0; }
+:root[data-skin="blue"]:not([data-dark]) .tb-btn.on { background: #e3e2d8; border-color: #9d9d92; }
+:root[data-skin="blue"]:not([data-dark]) .menu-pop { background: #fff; border: 1px solid #aca899; box-shadow: 2px 2px 4px rgba(0,0,0,.35); }
+:root[data-skin="blue"]:not([data-dark]) .menu-item:hover:not(:disabled) { background: #316ac5; color: #fff; }
+:root[data-skin="blue"]:not([data-dark]) .menu-sep { background: #aca899; }
+:root[data-skin="blue"]:not([data-dark]) .win { border: 0; padding: 0 3px 3px; border-radius: 8px 8px 0 0; background: #7a96df; box-shadow: 1px 2px 6px rgba(0,0,0,.35); }
+:root[data-skin="blue"]:not([data-dark]) .win.active { background: #0831d9; }
+:root[data-skin="blue"]:not([data-dark]) .win-head { margin: 0 -3px; padding: 0 4px 0 8px; min-height: 26px; border-radius: 7px 7px 0 0; background: linear-gradient(#a8c3f0, #7a96df 45%, #7591df 90%, #8aa5e5); color: #e2e9f8; }
+:root[data-skin="blue"]:not([data-dark]) .win.active .win-head { background: linear-gradient(#3d95ff, #0a5fec 12%, #0058e6 50%, #0060f2 88%, #0049d6); color: #fff; text-shadow: 1px 1px #0f1089; }
+:root[data-skin="blue"]:not([data-dark]) .win-title { font-weight: 700; }
+:root[data-skin="blue"]:not([data-dark]) .wb, :root[data-skin="blue"]:not([data-dark]) .wb[data-act=close] { width: 21px; height: 21px; border: 1px solid #fff; border-radius: 3px; color: #fff; font-weight: 700; font-size: 10px; background: linear-gradient(135deg, #7aa4f5, #2a63de 60%, #1d55d4); }
+:root[data-skin="blue"]:not([data-dark]) .wb:hover { background: linear-gradient(135deg, #9fc0ff, #3b78f0 60%, #2d68e6); border-color: #fff; }
+:root[data-skin="blue"]:not([data-dark]) .wb[data-act=close] { background: linear-gradient(135deg, #f0a088, #d8512c 60%, #c4401c); }
+:root[data-skin="blue"]:not([data-dark]) .wb[data-act=close]:hover { background: linear-gradient(135deg, #f8b8a2, #e8653e 60%, #d4502a); border-color: #fff; color: #fff; }
+:root[data-skin="blue"]:not([data-dark]) .win:not(.active) .wb { opacity: .75; }
+:root[data-skin="blue"]:not([data-dark]) .win-body, :root[data-skin="blue"]:not([data-dark]) .win.active .win-body, :root[data-skin="blue"]:not([data-dark]) .cw-body { background: #fff; border: 1px solid #7f9db9; }
+:root[data-skin="blue"]:not([data-dark]) .win-status { background: #ece9d8; }
+:root[data-skin="blue"]:not([data-dark]) #statusbar { background: #ece9d8; border-top: 1px solid #d6d2c2; }
+:root[data-skin="blue"]:not([data-dark]) .sb-pane { background: #ece9d8; border: 1px solid #d6d2c2; border-right-color: #fff; border-bottom-color: #fff; }
+:root[data-skin="blue"]:not([data-dark]) dialog.dlg { background: #ece9d8; border: 3px solid #0831d9; border-top: 0; border-radius: 8px 8px 0 0; box-shadow: 2px 3px 10px rgba(0,0,0,.4); }
+:root[data-skin="blue"]:not([data-dark]) .dlg-title { background: linear-gradient(#3d95ff, #0a5fec 12%, #0058e6 50%, #0060f2 88%, #0049d6); color: #fff; font-weight: 700; text-shadow: 1px 1px #0f1089; border-bottom: 0; }
+:root[data-skin="blue"]:not([data-dark]) .btn, :root[data-skin="blue"]:not([data-dark]) .btn:hover, :root[data-skin="blue"]:not([data-dark]) .btn.primary { border: 1px solid #003c74; border-radius: 3px; background: linear-gradient(#fff, #f3f2ec 70%, #d6d0c5); color: #000; }
+:root[data-skin="blue"]:not([data-dark]) .btn:hover { box-shadow: inset 0 0 0 2px #f8b330; }
+:root[data-skin="blue"]:not([data-dark]) .btn.primary { box-shadow: inset 0 0 0 2px #98b8ea; }
+:root[data-skin="blue"]:not([data-dark]) .dlg-row input[type=text], :root[data-skin="blue"]:not([data-dark]) .dlg-row input[type=number], :root[data-skin="blue"]:not([data-dark]) .dlg-row select, :root[data-skin="blue"]:not([data-dark]) .dlg-row textarea { border: 1px solid #7f9db9; border-radius: 0; background: #fff; }
+:root[data-skin="blue"]:not([data-dark]) .dlg-section { color: #0046d5; border-bottom-color: #d6d2c2; }
+:root[data-skin="blue"]:not([data-dark]) #welcome { background: #fff; border: 1px solid #7f9db9; border-radius: 0; }
+:root[data-skin="blue"]:not([data-dark]) #wstabs { background: #ece9d8; border-bottom-color: #919b9c; }
+:root[data-skin="blue"]:not([data-dark]) .ws-tab { background: linear-gradient(#fff, #ecebe6); border-color: #919b9c; color: #000; border-radius: 3px 3px 0 0; }
+:root[data-skin="blue"]:not([data-dark]) .ws-tab:hover { box-shadow: inset 0 2px #f8b330; }
+:root[data-skin="blue"]:not([data-dark]) .ws-tab.on { background: #fcfcfe; border-bottom-color: #fcfcfe; box-shadow: inset 0 2px #e68b2c; }
+/* Glass: late-2000s frosted light-blue frames, gradient buttons, deep-blue desktop */
+:root[data-skin="glass"]:not([data-dark]) {
+  --bg: #f0f0f0; --desk: #1b5f96; --panel: #f0f0f0; --panel-2: #e3edf8; --border: #a0afc3; --text: #000; --muted: #5a6f87;
+  --accent: #3399ff; --accent-ink: #fff; --selection: rgba(51,153,255,.2); --shadow: 0 6px 18px rgba(0,0,0,.35);
+  --sans: "Segoe UI", Tahoma, Arial, sans-serif;
+}
+:root[data-skin="glass"]:not([data-dark]) #desktop { background: radial-gradient(ellipse at 30% 15%, #5fb0e6 0%, #1f6aa6 45%, #0d3a62 100%); }
+:root[data-skin="glass"]:not([data-dark]) #menubar { background: linear-gradient(#fdfeff, #e8eef6); border-bottom: 1px solid #c8d4e3; }
+:root[data-skin="glass"]:not([data-dark]) #toolbar { background: linear-gradient(#f5f9fd, #dde8f3); border-bottom: 1px solid #a0afc3; }
+:root[data-skin="glass"]:not([data-dark]) .menubar-btn, :root[data-skin="glass"]:not([data-dark]) .tb-btn { border-radius: 3px; }
+:root[data-skin="glass"]:not([data-dark]) .menubar-btn:hover, :root[data-skin="glass"]:not([data-dark]) .menubar-btn[aria-expanded="true"], :root[data-skin="glass"]:not([data-dark]) .tb-btn:hover:not(:disabled) { background: linear-gradient(#fafdff, #d8ebfc); border-color: #a5cfef; }
+:root[data-skin="glass"]:not([data-dark]) .tb-btn.on { background: linear-gradient(#e0f0ff, #c4e1fb); border-color: #67a8e2; }
+:root[data-skin="glass"]:not([data-dark]) .menu-pop { background: #f5f6f7; border: 1px solid #979797; box-shadow: 3px 3px 6px rgba(0,0,0,.3); }
+:root[data-skin="glass"]:not([data-dark]) .menu-item { border-radius: 3px; border: 1px solid transparent; }
+:root[data-skin="glass"]:not([data-dark]) .menu-item:hover:not(:disabled) { background: linear-gradient(#f1f6fd, #d5e5f8); border-color: #aecff7; color: #000; }
+:root[data-skin="glass"]:not([data-dark]) .win { border: 1px solid #5c7fa7; border-radius: 7px 7px 3px 3px; padding: 0 6px 6px; background: linear-gradient(#dde8f4, #c9d8ea); box-shadow: 0 5px 16px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.65); }
+:root[data-skin="glass"]:not([data-dark]) .win.active { border-color: #3c5f8a; background: linear-gradient(#b9d0ec, #93b3db); }
+:root[data-skin="glass"]:not([data-dark]) .win-head, :root[data-skin="glass"]:not([data-dark]) .win.active .win-head { margin: 0 -6px; padding: 0 6px 0 10px; min-height: 28px; background: transparent; text-shadow: 0 0 6px #fff, 0 0 2px #fff; }
+:root[data-skin="glass"]:not([data-dark]) .win-head { color: #5a6f87; }
+:root[data-skin="glass"]:not([data-dark]) .win.active .win-head { color: #10223a; }
+:root[data-skin="glass"]:not([data-dark]) .wb { width: 27px; height: 19px; border: 1px solid #6d89ad; border-radius: 4px; color: #1e395b; background: linear-gradient(#f4f8fd, #d9e6f5 45%, #c3d6ee 55%, #c9dcf3); margin-left: 1px; }
+:root[data-skin="glass"]:not([data-dark]) .wb:hover { background: linear-gradient(#fff, #e6f2fd 45%, #c6e1fb 55%, #d6eafc); border-color: #3c7fb1; }
+:root[data-skin="glass"]:not([data-dark]) .wb[data-act=close] { width: 44px; color: #fff; border-color: #7a2b1c; background: linear-gradient(#ebaa98, #d77a60 45%, #c7452b 55%, #d76a4e); text-shadow: 0 0 2px #7a2b1c; }
+:root[data-skin="glass"]:not([data-dark]) .wb[data-act=close]:hover { background: linear-gradient(#f6c2b1, #ec8a6c 45%, #e3492a 55%, #f07a58); border-color: #7a2b1c; color: #fff; }
+:root[data-skin="glass"]:not([data-dark]) .win:not(.active) .wb { opacity: .8; }
+:root[data-skin="glass"]:not([data-dark]) .win-body, :root[data-skin="glass"]:not([data-dark]) .win.active .win-body, :root[data-skin="glass"]:not([data-dark]) .cw-body { background: #fff; border: 1px solid #8ca4c2; }
+:root[data-skin="glass"]:not([data-dark]) .win-status { background: #f0f0f0; }
+:root[data-skin="glass"]:not([data-dark]) #statusbar { background: linear-gradient(#f4f8fc, #e2eaf4); border-top: 1px solid #a0afc3; }
+:root[data-skin="glass"]:not([data-dark]) .sb-pane { background: transparent; border: 1px solid #c3cfdd; }
+:root[data-skin="glass"]:not([data-dark]) dialog.dlg { background: #f0f0f0; border: 1px solid #3c5f8a; border-radius: 7px; box-shadow: 0 8px 26px rgba(0,0,0,.4); overflow: hidden; }
+:root[data-skin="glass"]:not([data-dark]) .dlg-title { background: linear-gradient(#b9d0ec, #93b3db); color: #10223a; font-weight: 400; border-bottom: 1px solid #8ca4c2; text-shadow: 0 0 6px #fff; }
+:root[data-skin="glass"]:not([data-dark]) .btn, :root[data-skin="glass"]:not([data-dark]) .btn.primary { border: 1px solid #707070; border-radius: 3px; background: linear-gradient(#f2f2f2, #ebebeb 49%, #dddddd 50%, #cfcfcf); color: #000; }
+:root[data-skin="glass"]:not([data-dark]) .btn:hover { border-color: #3c7fb1; background: linear-gradient(#eaf6fd, #d9f0fc 49%, #bee6fd 50%, #a7d9f5); }
+:root[data-skin="glass"]:not([data-dark]) .btn.primary { border-color: #3399ff; box-shadow: inset 0 0 0 1px #99ccff; }
+:root[data-skin="glass"]:not([data-dark]) .dlg-row input[type=text], :root[data-skin="glass"]:not([data-dark]) .dlg-row input[type=number], :root[data-skin="glass"]:not([data-dark]) .dlg-row select, :root[data-skin="glass"]:not([data-dark]) .dlg-row textarea { border: 1px solid #abadb3; border-radius: 2px; background: #fff; }
+:root[data-skin="glass"]:not([data-dark]) .dlg-section { color: #1e5aa8; border-bottom-color: #c3cfdd; }
+:root[data-skin="glass"]:not([data-dark]) #welcome { background: rgba(255,255,255,.96); border: 1px solid #5c7fa7; border-radius: 7px; }
+:root[data-skin="glass"]:not([data-dark]) #wstabs { background: linear-gradient(#f5f9fd, #dde8f3); border-bottom-color: #8ea6c2; }
+:root[data-skin="glass"]:not([data-dark]) .ws-tab { background: linear-gradient(#f3f7fb, #dfe9f5); border-color: #8ea6c2; color: #1e395b; border-radius: 4px 4px 0 0; }
+:root[data-skin="glass"]:not([data-dark]) .ws-tab.on { background: #fff; border-bottom-color: #fff; color: #000; }

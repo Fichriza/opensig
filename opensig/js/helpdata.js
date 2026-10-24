@@ -68,8 +68,14 @@ ${SEE('keys', 'looks')}`),
 <p>Keyboard shortcuts:</p>
 ${KEYS()}
 ${SEE('zoom', 'cursors', 'harmonic')}`),
-      T('looks', 'Dark mode', ['dark', 'theme', 'style', 'classic', 'night', 'colours'], `
-<p><i>OpenSig</i> looks like classic Windows: flat windows with light-blue captions, white graphs, black axes and short tick marks. Dark mode keeps this layout with dark colours.</p>
+      T('looks', 'Window styles and dark mode', ['dark', 'theme', 'style', 'window style', 'classic', 'grey', 'blue', 'glass', 'skin', 'night', 'colours'], `
+<p><i>OpenSig</i> looks like classic Windows: windows with captions, white graphs, black axes and short tick marks. ${P('Window', 'Window style')} – or the <b>Window style</b> setting in ${P('File', 'Application settings…')} – chooses how the frames, menus, toolbars and dialogs look:</p>
+<table class="hv-table"><tr><th>Window style</th><th>Look</th></tr>
+<tr><td>Standard (light blue)</td><td>Flat frames with light-blue captions – the default</td></tr>
+<tr><td>Classic grey (1990s)</td><td>Grey 3D bevels, navy-to-blue captions and a teal desktop</td></tr>
+<tr><td>Classic blue (2000s)</td><td>Rounded blue captions, beige panels and buttons with an orange glow</td></tr>
+<tr><td>Glass (late 2000s)</td><td>Frosted light-blue frames, gradient buttons and a deep-blue desktop</td></tr></table>
+<p>The graphs look the same in every style. Dark mode keeps the layout with dark colours, and uses them whichever window style is chosen.</p>
 <p>Dark mode can be switched with ${P('Window', 'Dark mode')} (${K('Ctrl', 'Shift', 'D')}), the moon button on the toolbar, or in ${P('File', 'Application settings…')}, where it can also follow Windows. The desktop app darkens its title bar as well.</p>
 <p>The colours, grid and axes of single graphs can be changed further with ${L('graphstyle')}.</p>`),
       T('about', 'About OpenSig', ['version', 'license', 'privacy', 'clean-room'], `
@@ -650,7 +656,7 @@ ${MENU('Signal tools', 'Use custom tool')}`),
 
     B('settingsbook', 'Settings', '', [
       T('settings', 'Application settings', ['settings', 'preferences', 'options', 'number format', 'auto-save', 'playback device', 'F12'], `
-<p>${P('File', 'Application settings…')} (${K('Ctrl', ',')}; ${K('F12')} in the desktop app) sets the style and dark mode, default display options, the number format for exports and the clipboard, auto-saving and restoring the workspace, and the playback device. ${P('File', 'Application settings – advanced…')} holds the rarely changed options.</p>
+<p>${P('File', 'Application settings…')} (${K('Ctrl', ',')}; ${K('F12')} in the desktop app) sets the window style and dark mode, default display options, the number format for exports and the clipboard, auto-saving and restoring the workspace, and the playback device. ${P('File', 'Application settings – advanced…')} holds the rarely changed options.</p>
 <p>${P('Signal tools', 'Spectral analysis defaults…')} sets the parameters used by ${K('Ctrl', 'F')} and the other quick FFT commands.</p>`)
     ])
   ];

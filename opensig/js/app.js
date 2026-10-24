@@ -10,7 +10,7 @@
     palette: 'Jet', colorbar: true, freqDown: false, enhanceLow: false,
     step: 30, numPeaks: 5, fontSize: 11, audioOut: '', numFormat: { mode: 'sig', digits: 7 }, instFormat: { mode: 'sig', digits: 6 }, autosaveMin: 0, restoreLast: false, bandMarkers: true, wavChunk: true, wavFileDate: false,
     cursorAllWindows: true, logXSpectra: false, logYSpectra: false,
-    playLoop: false, autoVolume: true, digits: 6, darkMode: 'off'
+    playLoop: false, autoVolume: true, digits: 6, darkMode: 'off', windowStyle: 'standard'
   });
   function loadSettings() {
     const s = DEFAULT_SETTINGS();
@@ -34,13 +34,16 @@
       overlay: [v('--ov1'), v('--ov2'), v('--ov3'), v('--ov4'), v('--ov5')], font: (S.settings.fontSize || 11) + 'px ' + v('--mono'),
       classic: true, axisFont: ((S.settings.fontSize || 11) + 1) + 'px ' + v('--sans') };
   }
-  // Dark mode: off / on / follow Windows (the classic style is data-theme in index.html)
+  // Window style (data-skin: the look of frames, menus and dialogs) and dark mode (off / on / follow Windows); the
+  // classic style itself is data-theme in index.html
+  const WINDOW_STYLES = [['standard', 'Standard (light blue)'], ['grey', 'Classic grey (1990s)'], ['blue', 'Classic blue (2000s)'], ['glass', 'Glass (late 2000s)']];
   const sysDark = root.matchMedia ? root.matchMedia('(prefers-color-scheme: dark)') : null;
   function applyTheme() {
     const st = S.settings;
     if (st.theme === 'auto' || st.theme === 'dark' || st.theme === 'light') st.darkMode = { auto: 'system', dark: 'on', light: 'off' }[st.theme]; // settings of earlier versions
     delete st.theme; // earlier versions had a classic / modern style choice
     const dark = st.darkMode === 'on' || (st.darkMode === 'system' && !!(sysDark && sysDark.matches));
+    document.documentElement.setAttribute('data-skin', WINDOW_STYLES.some(s => s[0] === st.windowStyle) ? st.windowStyle : 'standard');
     document.documentElement.toggleAttribute('data-dark', dark);
     readTheme(); S.wins.forEach(w => { w.updateTitle(); requestRender(w); });
     if (root.HOST && root.HOST.available) root.HOST.call('darkTitleBar', { dark }).catch(() => {}); // Windows title bar of OpenSig.exe
@@ -49,6 +52,7 @@
   if (sysDark) sysDark.addEventListener('change', () => { if (S.settings.darkMode === 'system') applyTheme(); });
   const isDark = () => document.documentElement.hasAttribute('data-dark');
   function toggleDark() { S.settings.darkMode = isDark() ? 'off' : 'on'; saveSettings(); applyTheme(); }
+  function setWindowStyle(k) { S.settings.windowStyle = k; saveSettings(); applyTheme(); }
 
   /* ---------- Window model ---------- */
   class Win {
@@ -1163,7 +1167,7 @@
   root.APP = { S, Win, createWindow, derive, closeWindow, activate, link, unlink, queueCompute, recompute, requestRender, visibleData,
     setViewX, resetView, zoom, pan, fitX, extentX, arrange, toggleMax, openSignal, openXY, copyVisible, replaceSourceData,
     playSound, playSilent, stopPlayback, startAcquisition, stopAcquisition, restartAcquisition, resetAcquisition, afterData, emit, serialize, loadWorkspace, toolFromWindow, applyTool,
-    saveSettings, applyTheme, readTheme, isDark, toggleDark, valueAt, related, peaksOf, setPeaks, onChange: f => S.listeners.add(f), DEFAULT_SETTINGS, isOpen,
+    saveSettings, applyTheme, readTheme, isDark, toggleDark, setWindowStyle, WINDOW_STYLES, valueAt, related, peaksOf, setPeaks, onChange: f => S.listeners.add(f), DEFAULT_SETTINGS, isOpen,
     tabs: { init: initTabs, list: () => tabs, current: () => curTab, add: addTab, select: selectTab, close: closeTab, rename: renameTab, step: stepTab,
       forFile: tabForFile, serialize: serializeTabs, load: loadTabs } };
 })(window);

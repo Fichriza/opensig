@@ -244,7 +244,9 @@ generator writes a `.bat` file built on these commands.
   Search with Title / Location / Rank and highlighted words, the book under each topic title and ◀ ▶ through the
   topics in order. F1 opens the topic of the active window's tool. The topics (`js/helpdata.js`) are written for
   OpenSig; their menu and toolbar pictures are drawn from OpenSig's own menus.
-- **Look:** classic style with a dark mode – Window ▸ Dark mode (Ctrl+Shift+D), the
+- **Look:** classic style in four window styles – Standard (light blue), Classic grey (1990s 3D bevels, teal desktop),
+  Classic blue (2000s rounded blue captions, beige panels) and Glass (late-2000s frosted frames) – chosen in Window ▸
+  Window style or Application settings (`data-skin`, light mode only), with a dark mode – Window ▸ Dark mode (Ctrl+Shift+D), the
   moon button, or Application settings ▸ Dark mode: Off / On / Follow Windows. The desktop app darkens its Windows
   title bar too.
 
