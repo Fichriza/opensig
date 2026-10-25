@@ -10,7 +10,7 @@
     palette: 'Jet', colorbar: true, freqDown: false, enhanceLow: false,
     step: 30, numPeaks: 5, fontSize: 11, audioOut: '', numFormat: { mode: 'sig', digits: 7 }, instFormat: { mode: 'sig', digits: 6 }, autosaveMin: 0, restoreLast: false, bandMarkers: true, wavChunk: true, wavFileDate: false,
     cursorAllWindows: true, logXSpectra: false, logYSpectra: false,
-    playLoop: false, autoVolume: true, digits: 6, darkMode: 'off', windowStyle: 'standard', appIcon: 'classic'
+    playLoop: false, autoVolume: true, digits: 6, darkMode: 'off', windowStyle: 'standard', appIcon: 'classic', autoOrganize: false
   });
   function loadSettings() {
     const s = DEFAULT_SETTINGS();
@@ -124,6 +124,7 @@
       this.updateTitle();
       wireWindow(this);
       new ResizeObserver(() => requestRender(this)).observe(el.querySelector('.win-body'));
+      if (S.settings.autoOrganize) organizeSoon();
     }
 
     updateTitle() {
@@ -195,6 +196,7 @@
     S.wins.delete(w.id);
     w.el.remove();
     if (S.active === w) S.active = null;
+    if (S.settings.autoOrganize) organizeSoon();
     const last = [...S.wins.values()].sort((a, b) => (+b.el.style.zIndex || 0) - (+a.el.style.zIndex || 0))[0];
     if (last) activate(last);
     emit();
@@ -809,6 +811,7 @@
   }
 
   function arrange(mode) {
+    if (mode === 'organize') return organize();
     const ws = [...S.wins.values()], dw = S.desktop.clientWidth, dh = S.desktop.clientHeight;
     if (mode === 'cascade') ws.forEach((w, i) => Object.assign(w.el.style, { left: 16 + i * 26 + 'px', top: 12 + i * 26 + 'px', width: Math.min(620, dw * 0.55) + 'px', height: Math.min(360, dh * 0.5) + 'px' }));
     else {
@@ -817,6 +820,65 @@
     }
     ws.forEach(w => { w.savedRect = null; requestRender(w); });
   }
+
+  // Organize: one band per analysis tree – a source window and every window made from it, in tree order. The tree's
+  // graphs share the band's width (3 or 4 to a line), its instruments stack in a narrow column at the right end. With
+  // too many bands for the desktop's height it tiles instead; on a phone it stacks the windows in a column.
+  function organize() {
+    const ws = topoOrder([...S.wins.values()]).filter(w => !w.display.hidden), dw = S.desktop.clientWidth, dh = S.desktop.clientHeight, gap = 4;
+    if (!ws.length || !dw || !dh) return;
+    const put = (w, x, y, ww, hh) => {
+      Object.assign(w.el.style, { left: Math.round(x) + 'px', top: Math.round(y) + 'px', width: Math.max(80, Math.round(ww) - gap) + 'px', height: Math.max(60, Math.round(hh) - gap) + 'px' });
+      w.savedRect = null; requestRender(w);
+    };
+    if (dw < 700) { let y = 4; for (const w of ws) { const hh = w.kind === 'instrument' ? 140 : 240; put(w, 4, y, dw - 4, hh); y += hh; } return; }
+    // trees: windows joined by any parent link, so a window with several parents (geometry, cross-spectra) joins
+    // their trees and becomes a hub – shown large at the right of its band, the tree's other graphs in a grid beside it
+    const comp = new Map(ws.map(w => [w.id, w.id])), find = id => { while (comp.get(id) !== id) id = comp.get(id); return id; };
+    for (const w of ws) for (const p of w.parents) if (comp.has(p)) { const a = find(w.id), b = find(p); if (a !== b) comp.set(Math.max(a, b), Math.min(a, b)); }
+    const trees = new Map();
+    for (const w of ws) {
+      const k = find(w.id); if (!trees.has(k)) trees.set(k, { hubs: [], graphs: [], insts: [] });
+      const t = trees.get(k); (w.kind === 'instrument' ? t.insts : w.parents.length > 1 ? t.hubs : t.graphs).push(w);
+    }
+    const maxCols = dw >= 1400 ? 4 : 3, all = [...trees.values()];
+    const bands = all.filter(t => t.graphs.length || t.hubs.length).map(t => {
+      if (!t.graphs.length) { t.graphs = t.hubs; t.hubs = []; } // only hubs: side by side like other graphs
+      const share = t.hubs.length ? 0.45 : 1, cap = Math.max(1, Math.round(maxCols * share)); // share of the width for the grid
+      return Object.assign(t, { share, lines: Math.max(1, Math.ceil(t.graphs.length / cap)) });
+    });
+    // instruments left without a graph (their analysis window was closed): a strip along the bottom
+    const loose = all.filter(t => !t.graphs.length && !t.hubs.length).flatMap(t => t.insts);
+    let top = dh;
+    if (loose.length) {
+      const per = Math.max(1, Math.floor(dw / 200)), rows = Math.ceil(loose.length / per), inRow = Math.min(per, Math.max(4, loose.length));
+      const sh = bands.length ? Math.min(dh * 0.35, rows * 120) : dh; top = dh - sh;
+      loose.forEach((w, i) => put(w, (i % inRow) * dw / inRow, top + Math.floor(i / inRow) * sh / rows, dw / inRow, sh / rows));
+    }
+    if (!bands.length) return;
+    const lineH = top / bands.reduce((s, b) => s + b.lines, 0);
+    if (lineH < 110) return arrange('tile');
+    let y = 0;
+    for (const b of bands) {
+      const bh = b.lines * lineH, n = b.graphs.length;
+      let iw = 0;
+      if (b.insts.length) { // a column of instruments, a second one when they would get lower than 95 px
+        const icols = Math.ceil(b.insts.length / Math.max(1, Math.floor(bh / 95))), rows = Math.ceil(b.insts.length / icols);
+        iw = n ? Math.min(dw * 0.45, icols * Math.min(240, Math.max(170, dw * 0.14))) : dw;
+        b.insts.forEach((w, i) => put(w, dw - iw + (i % icols) * iw / icols, y + Math.floor(i / icols) * bh / rows, iw / icols, bh / rows));
+      }
+      const area = dw - iw, gw = area * b.share, cols = Math.ceil(n / b.lines);
+      b.graphs.forEach((w, i) => {
+        const line = Math.floor(i / cols), inLine = Math.min(cols, n - line * cols);
+        put(w, (i - line * cols) * gw / inLine, y + line * lineH, gw / inLine, lineH);
+      });
+      b.hubs.forEach((w, i) => put(w, gw, y + i * bh / b.hubs.length, area - gw, bh / b.hubs.length));
+      y += bh;
+    }
+  }
+  // Window ▸ Organize automatically: again after windows open or close (once for a whole example or workspace)
+  let organizeTimer = 0;
+  function organizeSoon() { clearTimeout(organizeTimer); organizeTimer = setTimeout(() => { if (S.settings.autoOrganize) organize(); }, 60); }
 
   /* ---------- Root signal windows ---------- */
   function openSignal(y, fs, title, source, extra) {
@@ -1165,7 +1227,7 @@
   function initTabs() { if (!curTab) selectTab(addTab()); }
 
   root.APP = { S, Win, createWindow, derive, closeWindow, activate, link, unlink, queueCompute, recompute, requestRender, visibleData,
-    setViewX, resetView, zoom, pan, fitX, extentX, arrange, toggleMax, openSignal, openXY, copyVisible, replaceSourceData,
+    setViewX, resetView, zoom, pan, fitX, extentX, arrange, organizeSoon, toggleMax, openSignal, openXY, copyVisible, replaceSourceData,
     playSound, playSilent, stopPlayback, startAcquisition, stopAcquisition, restartAcquisition, resetAcquisition, afterData, emit, serialize, loadWorkspace, toolFromWindow, applyTool,
     saveSettings, applyTheme, readTheme, isDark, toggleDark, setWindowStyle, WINDOW_STYLES, valueAt, related, peaksOf, setPeaks, onChange: f => S.listeners.add(f), DEFAULT_SETTINGS, isOpen,
     tabs: { init: initTabs, list: () => tabs, current: () => curTab, add: addTab, select: selectTab, close: closeTab, rename: renameTab, step: stepTab,

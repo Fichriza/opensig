@@ -48,7 +48,8 @@ Windows desktop app – the window and taskbar icon.*
 ## What it does
 
 - **Linked analysis windows** – FFT, spectrogram, filters and instruments follow their parent's visible part, so
-  zooming or playing (F5) animates everything below it. The Control Window shows and edits the whole analysis graph.
+  zooming or playing (F5) animates everything below it. The Control Window shows and edits the whole analysis graph,
+  and Window ▸ Organize lays the windows out by signal – automatically, if you like.
 - **Spectral analysis** – FFT / PSD with 15 window functions, zero padding, segment and complex averaging, smoothing,
   dB / dBFS, Siegel's test, A / C weighting; octave and 1/3 – 1/12 octave bands; spectrograms and time-FFT meshes
   with 3D cursors and slices.

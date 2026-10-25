@@ -89,6 +89,11 @@ generator writes a `.bat` file built on these commands.
 
 - **Linked windows:** every window is a node in a tree. Derived windows recompute when their parent changes. Spectral
   tools and instruments use the parent's visible part, so zooming or playing (F5) animates everything below it.
+- **Window ▸ Organize**: one band across the desktop per analysis tree (a source window and everything made from it),
+  graphs side by side (3–4 to a line) and instruments in a narrow column at the right. A window made from several
+  signals (geometry, calculator) takes the right half of its band, unlinked instruments a strip along the bottom; too
+  many trees for the height tile instead. **Organize automatically** (Window menu, Application settings) repeats it whenever a window opens or
+  closes, or the desktop changes size.
 - **Control Window** (System control ▸ Control window, Alt+W): the analysis graph – an icon per window,
   lines from parent to child (dotted when unlinked, coloured for the inputs of multi-input and overlay windows), "H" on
   hidden windows. Click to select (numbers show the order), drag a rectangle to select several (Ctrl unselects),

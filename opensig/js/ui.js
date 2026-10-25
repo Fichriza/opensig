@@ -700,6 +700,7 @@
       { key: 'appIcon', label: 'App icon', type: 'radio', cls: 'dlg-icons', wide: true, value: s.appIcon || 'classic', options: root.LOGOS ? root.LOGOS.options() : [['classic', 'Blue wave']],
         hint: 'on the welcome screen, in the About box and the browser tab, and – desktop app – as the window and taskbar icon' },
       { key: 'darkMode', label: 'Dark mode', type: 'select', options: [['off', 'Off'], ['on', 'On'], ['system', 'Follow Windows']], value: s.darkMode || 'off', hint: 'also Window ▸ Dark mode (Ctrl+Shift+D)' },
+      { key: 'autoOrganize', label: 'Organize windows automatically when one opens or closes', type: 'check', value: !!s.autoOrganize, hint: 'also Window ▸ Organize automatically' },
       { key: 'cursorAllWindows', label: 'Display signal cursor simultaneously in all related windows', type: 'check', value: s.cursorAllWindows },
       { key: 'logXSpectra', label: 'Use log X-axis as default for new spectral windows', type: 'check', value: s.logXSpectra },
       { key: 'colorbar', label: 'Show colour map by default in 3D graphics', type: 'check', value: s.colorbar },
@@ -713,7 +714,8 @@
       { key: 'playLoop', label: 'Play in loop', type: 'check', value: s.playLoop }],
       extra: [{ label: 'Spectral analysis defaults…', run: () => spectralDefaults() }] });
     if (!v) return;
-    Object.assign(s, v, { digits: Math.round(v.digits) || 6 }); APP.saveSettings(); APP.applyTheme(); if (root.LOGOS) root.LOGOS.apply();
+    const organizeNow = v.autoOrganize && !s.autoOrganize;
+    Object.assign(s, v, { digits: Math.round(v.digits) || 6 }); APP.saveSettings(); APP.applyTheme(); if (organizeNow) APP.arrange('organize'); if (root.LOGOS) root.LOGOS.apply();
   }
 
   /* ---------- 3D tools ---------- */
@@ -961,6 +963,12 @@
     { label: 'Window', items: [
       { label: 'Cascade', run: () => APP.arrange('cascade') },
       { label: 'Tile', run: () => APP.arrange('tile') },
+      { label: 'Organize', run: () => APP.arrange('organize') },
+      { label: 'Organize automatically', checked: () => !!S.settings.autoOrganize, run: () => {
+        S.settings.autoOrganize = !S.settings.autoOrganize; APP.saveSettings();
+        if (S.settings.autoOrganize) APP.arrange('organize');
+        toast(S.settings.autoOrganize ? 'Windows are organized whenever one opens or closes' : 'Windows stay where you put them');
+      } },
       { label: 'Dark mode', key: 'Ctrl+Shift+D', run: () => APP.toggleDark(), checked: () => APP.isDark() },
       { label: 'Window style', sub: APP.WINDOW_STYLES.map(([k, label]) => ({ label, checked: () => (S.settings.windowStyle || 'standard') === k, run: () => APP.setWindowStyle(k) })) },
       { label: 'Close all', run: async () => { if (S.wins.size && await confirmBox('Close all windows', 'Close all ' + S.wins.size + ' windows?')) [...S.wins.values()].forEach(APP.closeWindow); } }] },
@@ -1258,6 +1266,7 @@
   function boot() {
     S.desktop = $('#desktop');
     APP.tabs.init();
+    new ResizeObserver(() => { if (S.settings.autoOrganize) APP.organizeSoon(); }).observe(S.desktop); // Organize automatically
     APP.applyTheme();
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => APP.applyTheme());
     buildMenubar();
