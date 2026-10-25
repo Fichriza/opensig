@@ -14,7 +14,7 @@
   const OPENER = /<mo[^>]*>([([{⌊⌈⟨=,≤≥≈≠<>+−·×/∣]|&lt;|&gt;)<\/mo>$/;
   const BIG = { sum: '∑', prod: '∏', int: '∫' };
   const LIMITS = new Set(['max', 'min', 'lim', 'sup', 'inf']);          // \max_{k}: the limit below in display formulas
-  const NAMED = new Set(['log', 'ln', 'exp', 'sin', 'cos', 'tan', 'arg', 'sgn', 'Re', 'Im', 'det', 'mod']);
+  const NAMED = new Set(['log', 'ln', 'exp', 'sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh', 'arg', 'sgn', 'Re', 'Im', 'det', 'mod']);
   const ACCENT = { hat: '^', bar: '¯', tilde: '˜', vec: '→', dot: '˙', overline: '¯' }; // bars as plain overscripts: as accents they touch the letter
   const SPACE = { ',': '0.1667em', ':': '0.2222em', ';': '0.2778em', ' ': '0.25em', '!': '-0.1667em', quad: '1em', qquad: '2em' };
 

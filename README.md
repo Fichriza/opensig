@@ -21,6 +21,12 @@ signals.*
 *A bridge deck measured with ten accelerometers: the 3D model animates each mode shape, and the mode buttons show the
 natural frequency and damping found by Enhanced FDD.*
 
+### Cable tension
+![The cable tension of a stay cable: the spectrum with ten modes marked, the tension by five methods and the modes table](docs/screenshots/cable-tension.png)
+*The tension of a stay cable from an accelerometer on it: the cable's harmonic series in the spectrum, the tension by
+five methods – taut string, hinged or clamped beam, a fit of several modes and Zui et al. (1996) – and the ratio to
+the design tension.*
+
 ### Workspace tabs and many channels
 ![Eight accelerometer channels stacked in one window, with an FFT and a spectrogram, and three workspace tabs](docs/screenshots/tabs-and-stacked.png)
 *Every workspace has its own tab. Eight channels share one window and one time axis (stacked view), with an FFT and a
@@ -59,6 +65,9 @@ Windows desktop app – the window and taskbar icon.*
   numbers or gauges, with critical ranges, alarm actions and value logging; peak detection with six methods.
 - **Operational modal analysis** – a 3D geometry editor, ODS and FDD animation, natural frequencies and damping by
   Enhanced FDD, MAC, roving tests measured in several setups, and Excel export of the results.
+- **Cable tension** – the tension of stay cables and hangers from an accelerometer: the harmonic series found in the
+  spectrum, five methods (taut string, hinged or clamped beam, a multi-mode fit that finds EI, Zui et al. 1996), the
+  bending and sag parameters and the ratio to the design tension.
 - **Workspaces** – every workspace in its own tab, saved with or without data and restored at the next start; custom
   tools, scripts, overlays and stacked views.
 - **Data in and out** – WAV, FLAC, MP3, OGG, AIFF, M4A, CSV (millions of rows, and files that another program keeps

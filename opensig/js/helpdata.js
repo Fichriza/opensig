@@ -702,6 +702,79 @@ ${SEE('geomodes', 'rovcombine')}`),
 ${SEE('georoving', 'rovresults', 'geometry')}`)
     ]),
 
+    B('cablebook', 'Cable Tension', '<p>The tension of stay cables, hangers and ties from the vibration measured on them.</p>', [
+      T('cable', 'Cable tension from vibration', ['cable', 'cable tension', 'stay cable', 'hanger', 'tie rod', 'tension', 'vibration method', 'taut string', 'Zui', 'bending stiffness', 'sag', 'design tension', 'accelerometer', 'kN'], `
+<p>${P('3D tools', 'Cable tension from vibration…')} – or the cable button right of the Geometry button – estimates the tension of a stay cable, hanger or tie from the acceleration measured on it. A tensioned cable vibrates at a series of almost evenly spaced natural frequencies, ${M`f_n\approx n\,f_1`}, and their spacing grows with the tension. The module finds this series in the spectrum of the record and turns it into the tension, by five methods you can compare.</p>
+<h2>Measuring</h2>
+<ul><li>Fix an accelerometer across the cable, a few percent of its length from an anchorage (2–5 %). There every mode moves; at the middle, a third or a quarter of the length some modes stand still.</li>
+<li>Record ambient vibration (wind, traffic) for 5–10 minutes or more; a longer record gives a smoother spectrum and finer frequencies.</li>
+<li>Sample at least 2.5 times as fast as the highest mode you want: 50–100 Hz for long stay cables, 200–500 Hz for short hangers.</li></ul>
+<h2>Using it</h2>
+<ol><li>Open the record and select its window. Like an FFT, the module uses the <b>visible part</b>: zoom to analyse only a part of the record.</li>
+<li>Choose ${P('3D tools', 'Cable tension from vibration…')} and enter the cable data (below). The data are kept for the next cable of the same bridge.</li>
+<li>The window shows the spectrum (PSD) with the modes found, the tension and its ratio to the design tension, and two tables: the tension by every method, and every mode with its frequency and tension.</li>
+<li>In the spectrum, green lines are the modes used, grey dashed lines weak peaks or modes you left out, red dashed lines modes off the harmonic series (another component's peak, or noise). Click a mode – in the table or the spectrum – to leave it out or use it; <b>Automatic modes</b> undoes your clicks.</li>
+<li>Click a method in the table, or choose it in <b>Tension from</b>, to make it the result.</li>
+<li><b>Copy</b> puts the results on the clipboard for Excel or Word; <b>Excel…</b> saves a workbook with the sheets Tension and Modes. <b>Cable data…</b> changes the data.</li></ol>
+<h2>The cable data</h2>
+<table class="hv-table"><tr><th>Field</th><th>Meaning</th></tr>
+<tr><td>Length L (m)</td><td>The vibrating length: between the anchorages, or between a damper and the far anchorage when the damper holds the cable</td></tr>
+<tr><td>Mass per metre m (kg/m)</td><td>Everything that vibrates with the cable: steel, sheath, grout or wax</td></tr>
+<tr><td>E (MPa), I (mm⁴)</td><td>The bending stiffness EI. For a strand cable the strands slide on each other, so the stiffness of the separate strands, ${M`I=n_s\pi d^4/64`}, is a common lower value; for a solid bar, ${M`\pi d^4/64`}. I = 0 means no bending stiffness: a taut string</td></tr>
+<tr><td>A (mm²), θ (°)</td><td>The steel area and the inclination from horizontal, for the sag parameters λ² and Γ (90° for a vertical hanger: no sag)</td></tr>
+<tr><td>Design tension (kN)</td><td>For the ratio of measured to design tension (within ±5 % it is shown green)</td></tr>
+<tr><td>Lowest / highest frequency</td><td>The range searched for modes; 0 as the highest is 80 % of half the sample rate</td></tr>
+<tr><td>First frequency, about</td><td>Helps when another peak (of the deck or tower) is taken for the cable's: the search stays within ±15 % of it</td></tr>
+<tr><td>Modes, at most</td><td>How many modes are searched</td></tr>
+<tr><td>Averaged segments</td><td>The spectrum averages this many half-overlapping segments: more give a smoother spectrum, fewer a finer frequency resolution</td></tr></table>
+<h2>Which method?</h2>
+<ul><li><b>Beam, clamped ends (exact)</b> – the default: the exact frequencies of a tensioned beam fixed at both ends, with the bending stiffness EI. Right for most anchored cables and hangers. With I = 0 it is the taut string.</li>
+<li><b>Beam, hinged ends</b> – a closed formula with EI for ends that can rotate; for clamped short members it gives too much.</li>
+<li><b>Taut string</b> – the classic ${M`T=4mL^2(f_n/n)^2`}, without bending stiffness. For long cables it is close; it gives about ${M`4/\xi`} too much (see the parameters below), so a ξ of 200 means 2 %.</li>
+<li><b>Fit of several modes</b> – needs no EI: it finds the tension and the bending stiffness from how ${M`f_n/n`} grows with n. It assumes hinged ends; with clamped ends it gives about ${M`4/\xi`} too much.</li>
+<li><b>Zui et al. (1996)</b> – the practical formulas of Zui, Shinke and Namita, with bending stiffness and sag, from the first or the second frequency. Widely used for cable-stayed bridges; it needs A and θ for the sag.</li></ul>
+<p>The line under the result gives ${M`f_1`}, the bending parameter ${M`\xi=L\sqrt{T/EI}`} (bending stiffness matters below about 200) and Irvine's sag parameter ${M`\lambda^2`} (sag raises the first mode noticeably above about 0.1). When methods differ, the yellow notes say why. ${L('cablemath')} gives every formula.</p>
+<h2>Examples</h2>
+<p>${P('Help', 'Examples', 'Stay cable: tension from ambient vibration')} and ${P('Help', 'Examples', 'Arch hanger: tension with bending stiffness')} open simulated records of cables with a known tension – 2950 kN and 450 kN – so you can see how close each method comes. On the short hanger the taut string gives far too much.</p>
+${SEE('cablemath', 'fft', 'geometry')}`),
+      T('cablemath', 'Cable tension: how it is calculated', ['cable formulas', 'string formula', 'beam with tension', 'clamped beam', 'frequency equation', 'Irvine', 'lambda squared', 'sag-extensibility', 'xi', 'Zui Shinke Namita', 'flexural rigidity'], `
+<h2>The spectrum and the modes</h2>
+<p>The PSD of the visible part is averaged over ${M`J`} half-overlapping segments with a Hann window and zero-padded to twice the next power of 2 (see ${L('fftparams')}). The height of a peak is measured above the local median of the spectrum in dB, its prominence. The first frequency is searched for as the one whose first six harmonics, allowing for bending stiffness,</p>
+${EQ`f_n=n\,f\sqrt{1+b\,n^2},\qquad b\in\left\{0,\ 0.001,\ 0.003,\ 0.01,\ 0.03,\ \frac{\pi^2EI}{4mL^4f^2}\right\}`}
+<p>stand out most on average (each searched within ±2 %). Of the candidates within 85 % of the best score, the lowest wins, so twice the first frequency is not taken. Then mode after mode is predicted from the ones found so far, with the straight line ${M`(f_n/n)^2=a+c\,n^2`}, and taken as the highest line within ±20 % of the spacing, refined by a parabola through the dB values. Peaks less than 6 dB above the median are weak. A mode is off the series when ${M`(f_n/n)^2`} lies more than 4 robust standard deviations (1.4826 × the median absolute deviation) and more than 1 % from a Theil–Sen line over ${M`n^2`}. Weak and off-series modes are left out unless you use them.</p>
+<h2>Taut string</h2>
+${EQ`f_n=\frac{n}{2L}\sqrt{\frac{T}{m}}\qquad\Rightarrow\qquad T_n=4mL^2\left(\frac{f_n}{n}\right)^2`}
+<h2>Beam with hinged ends</h2>
+${EQ`f_n=\frac{n}{2L}\sqrt{\frac{T}{m}+\frac{n^2\pi^2EI}{mL^2}}\qquad\Rightarrow\qquad T_n=4mL^2\left(\frac{f_n}{n}\right)^2-\frac{n^2\pi^2EI}{L^2}`}
+<h2>Beam with clamped ends</h2>
+<p>The cable is a beam under the tension ${M`T`}, fixed against deflection and rotation at both ends:</p>
+${EQ`EI\,\frac{\partial^4w}{\partial x^4}-T\,\frac{\partial^2w}{\partial x^2}+m\,\frac{\partial^2w}{\partial t^2}=0,\qquad w=\frac{\partial w}{\partial x}=0\ \text{at}\ x=0,\ L`}
+<p>A mode ${M`w=W(x)\,e^{i\omega t}`} combines ${M`\cosh\alpha x`}, ${M`\sinh\alpha x`}, ${M`\cos\beta x`} and ${M`\sin\beta x`}, with</p>
+${EQ`\alpha^2-\beta^2=\frac{T}{EI},\qquad\alpha^2\beta^2=\frac{m\omega^2}{EI}`}
+<p>and the four end conditions have a solution only when</p>
+${EQ`2\alpha\beta\left(1-\cosh\alpha L\cos\beta L\right)+\left(\alpha^2-\beta^2\right)\sinh\alpha L\sin\beta L=0`}
+<p>The n-th root lies in ${M`n\pi<\beta L<(n+1)\pi`}. OpenSig divides the equation by ${M`\cosh\alpha L`} (so it cannot overflow), finds the root by bisection, and finds the tension that gives the measured ${M`f_n`} by a second bisection between 0 and the string tension (bending only adds stiffness). Without tension the roots are those of a clamped beam, ${M`\beta_1L=4.7300`}; with high tension the frequencies approach ${M`f_n\approx f_n^{\mathrm{string}}\left(1+\frac{2}{\xi}+\frac{4+n^2\pi^2/2}{\xi^2}\right)`}.</p>
+<h2>Fit of several modes</h2>
+<p>For hinged ends, ${M`(f_n/n)^2`} is a straight line over ${M`n^2`}:</p>
+${EQ`\left(\frac{f_n}{n}\right)^2=\frac{T}{4mL^2}+\frac{\pi^2EI}{4mL^4}\,n^2\qquad\Rightarrow\qquad T=4mL^2a,\quad EI=\frac{4mL^4}{\pi^2}\,b`}
+<p>where ${M`a`} and ${M`b`} are the intercept and slope of the least-squares line through the modes used. The spread shown is the standard error of ${M`T`} from the intercept's.</p>
+<h2>Zui, Shinke and Namita (1996)</h2>
+<p>With the sag ratio ${M`\delta`} and</p>
+${EQ`C=\sqrt{\frac{EI}{mL^4}},\qquad\xi=L\sqrt{\frac{T}{EI}},\qquad\delta=\frac{mgL\cos\theta}{8T},\qquad\Gamma=\sqrt{\frac{mgL}{128\,EA\,\delta^3\cos^5\theta}}\cdot\frac{0.31\xi+0.5}{0.31\xi-0.5}`}
+<table class="hv-table hv-mtable"><tr><th>Sag</th><th>Range</th><th>Tension</th></tr>
+<tr><td rowspan="3">${M`\Gamma\ge3`}: the first mode</td><td>${M`17\le\xi`}</td><td>${M`T=4m\left(f_1L\right)^2\left[1-2.20\frac{C}{f_1}-0.550\left(\frac{C}{f_1}\right)^2\right]`}</td></tr>
+<tr><td>${M`6\le\xi\le17`}</td><td>${M`T=4m\left(f_1L\right)^2\left[0.865-11.6\left(\frac{C}{f_1}\right)^2\right]`}</td></tr>
+<tr><td>${M`0\le\xi\le6`}</td><td>${M`T=4m\left(f_1L\right)^2\left[0.828-10.5\left(\frac{C}{f_1}\right)^2\right]`}</td></tr>
+<tr><td rowspan="3">${M`0.17\le\Gamma\le3`}: the second mode</td><td>${M`60\le\xi`}</td><td>${M`T=m\left(f_2L\right)^2\left[1-4.40\frac{C}{f_2}-1.10\left(\frac{C}{f_2}\right)^2\right]`}</td></tr>
+<tr><td>${M`17\le\xi\le60`}</td><td>${M`T=m\left(f_2L\right)^2\left[1.03-6.33\frac{C}{f_2}-1.58\left(\frac{C}{f_2}\right)^2\right]`}</td></tr>
+<tr><td>${M`0\le\xi\le17`}</td><td>${M`T=m\left(f_2L\right)^2\left[0.882-85.0\left(\frac{C}{f_2}\right)^2\right]`}</td></tr></table>
+<p>${M`\xi`} and ${M`\Gamma`} depend on the tension, so OpenSig starts from the string tension and repeats until it no longer changes. When only ${M`f_2`} is used, the second-mode formulas apply. Below ${M`\Gamma=0.17`} the sag is outside the formulas' range.</p>
+<h2>Sag and bending parameters</h2>
+${EQ`\xi=L\sqrt{\frac{T}{EI}},\qquad\delta=\frac{mgL\cos\theta}{8T},\qquad\lambda^2=\left(\frac{mgL\cos\theta}{T}\right)^2\frac{L}{TL_e/(EA)},\quad L_e=L\left(1+8\delta^2\right)`}
+<p>Irvine's ${M`\lambda^2`} measures how much the sag stiffens the symmetric in-plane modes. For small ${M`\lambda^2`} the first frequency rises by about ${M`4\lambda^2/\pi^4`}, so the tension from it is about ${M`8\lambda^2/\pi^4`} too high; the even modes do not change. Clamped ends without sag raise the first frequency by about ${M`2/\xi`}.</p>
+<h2>The result</h2>
+<p>For the string and the beams, ${M`T`} is the mean of the tensions ${M`T_n`} of the modes used, and the scatter is their standard deviation over the mean. The ratio to the design tension is ${M`T/T_{\mathrm{design}}`}.</p>
+${SEE('cable', 'fftparams')}`)]),
     B('meas', 'Instruments', '<p>Instruments measure a single value of their parent window, such as its RMS or dominant frequency, and update with it.</p>', [
       T('instruments', 'Instruments', ['instrument', 'measure', 'gauge', 'statistics', 'alarm', 'critical range'], `
 <p>Choose an instrument from the ${P('Instruments')} menu or the instrument buttons on the second toolbar row. It opens as a small window showing one value of the active window's visible part, and recalculates whenever that changes.</p>
@@ -824,7 +897,7 @@ ${MENU('Signal tools', 'Use custom tool')}`),
     averager: 'averager', octave: 'octave', filterbank: 'octave', srs: 'srs', overtime: 'overtime', calc: 'calculator', instrument: 'instruments',
     cepstrum: 'zerocross', zerocross: 'zerocross', wavedenoise: 'wavelet', tacho: 'tacho', cwt: 'cwt', align: 'align', report: 'ai', chart: 'customdisplays',
     script: 'scripts', scriptsource: 'scripts', scriptinst: 'scripts', scriptinstsource: 'scripts', scriptdisplay: 'customdisplays', tfftstats: 'timefft',
-    track3d: 'cursor3d', filter3d: 'cursor3d', slice: 'cursor3d', sum3d: 'specinst', extract: 'zoom', peaks: 'peaks', edit: 'editnode', geometry: 'geometry' };
+    track3d: 'cursor3d', filter3d: 'cursor3d', slice: 'cursor3d', sum3d: 'specinst', extract: 'zoom', peaks: 'peaks', edit: 'editnode', geometry: 'geometry', cable: 'cable' };
 
   // the keyboard table of the "Keyboard and mouse" topic
   const keys = [['F1', 'Help for the active window'], ['Ctrl+O / Ctrl+S', 'Open / save signal'], ['Ctrl+I / Ctrl+L', 'Save / load workspace (desktop: Ctrl+W loads)'], ['Ctrl+Tab / Ctrl+Shift+Tab', 'Next / previous workspace tab (desktop app)'],

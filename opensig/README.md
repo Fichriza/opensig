@@ -171,6 +171,19 @@ generator writes a `.bat` file built on these commands.
     the program – only the names of its views, commands and fields (WPF layout files and readable words in its
     compiled views). Its code, obfuscated strings and licensing were not examined, and none of its code, text or
     artwork is used.
+- **Cable tension from vibration** (`js/cable.js`, `js/cablemath.js`; 3D tools ▸ Cable tension from vibration…, the
+  large cable button right of Geometry): the tension of a stay cable, hanger or tie from an accelerometer on it. Input:
+  the signal (its visible part) and the cable data – length, mass per metre, E, I, A, inclination, design tension –
+  kept for the next cable. The Welch PSD (Hann, half-overlapping segments) is searched for the harmonic series: the
+  first frequency whose first six harmonics stand out most above the local median (with the inharmonicity of bending
+  stiffness), then mode by mode from a line of (f_n/n)² over n²; weak peaks and modes off a robust Theil–Sen line are
+  left out, and a click on a mode (table or plot) overrides that. Five methods: taut string, beam with hinged ends,
+  beam with clamped ends (the exact frequency equation, solved by bisection), a fit of several modes that also finds EI,
+  and Zui, Shinke & Namita (1996) with the bending and sag parameters ξ and Γ; plus Irvine's λ², the sag ratio, the
+  ratio to the design tension and notes when the methods disagree. Copy and Excel export (sheets Tension and Modes).
+  Two examples (Help ▸ Examples): a stay cable (80 m, 2950 kN) and a short arch hanger (12 m, 450 kN, ξ ≈ 22) with
+  simulated ambient records; `test/cable.test.js` checks the formulas against the clamped-beam roots and asymptotes,
+  Zui's formulas against the exact beam, and the whole chain on both simulated records (within 0.5 % and 1 %).
 - **Files:** WAV (with a display-settings chunk), FLAC/MP3/OGG/AIFF/M4A, ASCII/CSV, raw binary (5 formats),
   MATLAB `.mat` (v5 incl. compressed and structs; v7.3 via HDF5), NumPy `.npy`/`.npz`, UFF/UNV dataset 58, GDF 1/2,
   EDF/BDF, HDF5/JLD2/NetCDF-4 (signal selection dialog), data-log `.sig` + `.txt`, clipboard, `.flt` filter

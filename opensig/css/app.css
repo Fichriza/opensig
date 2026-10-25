@@ -516,6 +516,35 @@ li.sel > .hv-row .hv-lbl { background: var(--hv-sel); border-color: var(--hv-sel
 .geo-split { flex: none; width: 5px; margin-right: -2px; cursor: col-resize; position: relative; z-index: 1; }
 .geo-split:hover, .geo-split:active { background: rgba(24,131,215,.35); }
 .geo-btn.geo-run { background: #1a8f2e; border-color: #1a8f2e; color: #fff; font-weight: 600; padding: 2px 12px; }
+/* Cable tension (cable.js): the spectrum above, the result and the modes below */
+.cab { flex-direction: column; }
+.cab-lab { margin-left: 6px; color: var(--geo-muted); }
+.cab-info { margin-left: auto; color: var(--geo-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cab-plot { flex: 0 0 44%; min-height: 150px; position: relative; border-bottom: 1px solid var(--geo-line); }
+.cab-plot canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+.cab-res { flex: 1; min-height: 0; overflow: auto; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 22px; padding: 8px 12px 12px; }
+.cab-left { flex: 1 1 380px; min-width: 300px; }
+.cab-right { flex: 1 1 440px; min-width: 300px; }
+.cab-T { font-size: 20px; margin: 0 0 2px; }
+.cab-T b { font-size: 28px; font-variant-numeric: tabular-nums; }
+.cab-sub, .cab-par { color: var(--geo-muted); margin: 2px 0; }
+.cab-design { margin: 4px 0; font-weight: 600; }
+.cab-design.ok { color: #1a8f2e; }
+.cab-design.off { color: #c0392b; }
+.cab-warn { margin: 8px 0; padding: 4px 8px 4px 24px; background: rgba(224, 168, 0, .13); border-left: 3px solid #e0a800; }
+.cab-warn li { margin: 2px 0; }
+.cab-empty { padding: 14px 4px; color: var(--geo-muted); }
+.cab-tab { border-collapse: collapse; width: 100%; margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
+.cab-tab th { font-weight: 600; text-align: right; padding: 3px 7px; border-bottom: 1px solid var(--geo-muted); white-space: nowrap; }
+.cab-tab td { text-align: right; padding: 2px 7px; border-bottom: 1px solid var(--geo-line); white-space: nowrap; }
+.cab-tab th:first-child, .cab-tab td:first-child, .cab-tab .cab-note { text-align: left; }
+.cab-tab .cab-note { color: var(--geo-muted); white-space: normal; }
+.cab-tab tbody tr { cursor: pointer; }
+.cab-tab tbody tr:hover td { background: rgba(24, 131, 215, .08); }
+.cab-tab tr.sel td { background: rgba(24, 131, 215, .16); font-weight: 600; }
+.cab-tab tr.off td { color: var(--geo-muted); }
+.cab-modes td:first-child, .cab-modes th:first-child { width: 28px; }
+.cab-modes .cab-note { white-space: nowrap; }
 .geo-btn.geo-run:hover { background: #157526; border-color: #0d5a1b; }
 .geo-chip.on { background: #c00; border-color: #c00; color: #fff; }
 .geo-modes tr:not(:first-child) { cursor: pointer; }
