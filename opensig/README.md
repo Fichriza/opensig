@@ -215,7 +215,7 @@ generator writes a `.bat` file built on these commands.
   z-score (lag, threshold, influence); wavelet ridge lines (matches `scipy.signal.find_peaks_cwt`). All can mark
   valleys and refine positions between samples (parabola or Gaussian). Signal tools ▸ Copy detected peaks copies
   X/Y. `test/fixtures/make_peaks_scipy.py` writes the SciPy reference results checked by `test/dsp.test.js`.
-- **3D tools:** spectrogram/mesh views, 13 palettes, cursor, slices, max tracking, 3D filter, time-FFT statistics,
+- **3D tools:** spectrogram/mesh views (the mesh a shaded surface in a 3D box, linear or dB), 13 palettes, cursor, slices, max tracking, 3D filter, time-FFT statistics,
   band level over time, contour plot.
 - **Custom displays:** scatter 2D / 2D+colour / 3D (drag to rotate), orbit, polar, Bode, Bode + Nyquist, box, violin,
   box + violin, corner and correlation plots.

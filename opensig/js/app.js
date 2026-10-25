@@ -583,7 +583,7 @@
 
   function render3D(w, th, cw, ch) {
     const d = w.data, z = w.display.zFixed || d.zAuto;
-    const opt = { sg: d.sg, view: w.view, zRange: z, palette: w.display.palette, invert: w.display.invert,
+    const opt = { sg: d.sg, view: w.view, zRange: z, zFixed: !!w.display.zFixed, db: !!w.display.meshDb, palette: w.display.palette, invert: w.display.invert,
       colorbar: w.display.colorbar, freqDown: S.settings.freqDown, enhanceLow: w.display.enhanceLow,
       cursor: w.display.crosshair && w.fixedCursor3 ? w.fixedCursor3 : null, xLabel: w.display.xLabel ?? (d.xUnit || 's'), yLabel: w.display.yLabel ?? 'Hz' };
     w.lay = w.display.mode === 'mesh' ? PLOT.drawWaterfall(w.ctx, cw, ch, th, opt) : PLOT.drawSpectrogram(w.ctx, cw, ch, th, opt);

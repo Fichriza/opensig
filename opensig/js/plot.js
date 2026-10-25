@@ -447,41 +447,111 @@
     return { rect: r, ax, ay };
   }
 
-  // Waterfall / mesh pseudo-3D: rows drawn back-to-front with an oblique offset.
+  // Time FFT (mesh) view: the spectra as a shaded surface in a 3D box, on black – frequency along the front left edge,
+  // time along the front right one, the level up and in the palette's colours – drawn from the back to the front, with
+  // two grey back walls, the colour map on the left and the level axis on the right corner. The grid has at most 72 rows
+  // and 180 columns, each the maximum of the lines it stands for, so no peak is lost. Linear amplitude unless opt.db.
+  // opt: {sg, view: {x0, x1 (time), y0, y1 (frequency)}, zRange (dB), zFixed, db, palette, invert, enhanceLow, colorbar,
+  // xLabel, yLabel, yaw, pitch (degrees)}
   function drawWaterfall(ctx, w, h, th, opt) {
-    ctx.fillStyle = th.plotBg; ctx.fillRect(0, 0, w, h);
-    const sg = opt.sg, r = layout(w, h, Object.assign({}, opt, { rightPad: 20 }));
-    if (!sg || !sg.rows.length) return { rect: r };
-    const rows = sg.rows, maxRows = Math.min(rows.length, opt.maxRows || 60), stride = rows.length / maxRows;
-    const depthX = r.w * 0.28, depthY = r.h * 0.45, fw = r.w - depthX, fh = r.h - depthY;
-    const [zlo, zhi] = opt.zRange, f0 = opt.view.y0, f1 = opt.view.y1, L = lut(opt.palette, opt.invert);
-    const k0 = Math.max(0, Math.floor((f0 - (sg.f0 || 0)) / sg.df)), k1 = Math.min(sg.bins - 1, Math.ceil((f1 - (sg.f0 || 0)) / sg.df));
-    const step = Math.max(1, Math.floor((k1 - k0) / fw));
-    for (let j = maxRows - 1; j >= 0; j--) {
-      const row = rows[Math.floor(j * stride)].v, d = j / Math.max(1, maxRows - 1);
-      const ox = r.x + d * depthX, oy = r.y + depthY - d * depthY + fh;
-      const pts = [];
-      for (let k = k0; k <= k1; k += step) {
-        const z = Math.max(0, Math.min(1, (row[k] - zlo) / (zhi - zlo)));
-        pts.push([ox + (k - k0) / Math.max(1, k1 - k0) * fw, oy - z * fh, z]);
+    const INK = '#d4d4d4', sg = opt.sg;
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+    if (!sg || !sg.rows.length) return { rect: { x: 0, y: 0, w, h } };
+    const sf0 = sg.f0 || 0, lin = !opt.db;
+    let rows = sg.rows.filter(rw => rw.t >= opt.view.x0 && rw.t <= opt.view.x1);
+    if (rows.length < 2) rows = sg.rows;
+    const k0 = Math.max(0, Math.floor((opt.view.y0 - sf0) / sg.df)), k1 = Math.max(k0 + 1, Math.min(sg.bins - 1, Math.ceil((opt.view.y1 - sf0) / sg.df)));
+    const NC = Math.min(180, k1 - k0 + 1), NR = Math.max(2, Math.min(72, rows.length));
+    const grid = [];
+    for (let j = 0; j < NR; j++) {
+      const ra = Math.floor(j * rows.length / NR), rb = Math.max(ra + 1, Math.floor((j + 1) * rows.length / NR)), g = new Float64Array(NC);
+      for (let i = 0; i < NC; i++) {
+        const ka = k0 + Math.floor(i * (k1 - k0 + 1) / NC), kb = Math.max(ka + 1, k0 + Math.floor((i + 1) * (k1 - k0 + 1) / NC));
+        let m = -Infinity; for (let rr = ra; rr < rb && rr < rows.length; rr++) { const v = rows[rr].v; for (let k = ka; k < kb; k++) if (v[k] > m) m = v[k]; }
+        g[i] = lin ? Math.pow(10, m / 20) : m;
       }
-      // hide rows behind this one, then stroke each segment in the palette colour of its level
-      ctx.beginPath(); ctx.moveTo(ox, oy);
-      for (const p of pts) ctx.lineTo(p[0], p[1]);
-      ctx.lineTo(ox + fw, oy); ctx.closePath(); ctx.fillStyle = th.plotBg; ctx.fill();
-      for (let i = 1; i < pts.length; i++) {
-        const c = Math.round(Math.max(pts[i - 1][2], pts[i][2]) * 255) * 3;
-        ctx.strokeStyle = `rgb(${L[c]},${L[c + 1]},${L[c + 2]})`;
-        ctx.beginPath(); ctx.moveTo(pts[i - 1][0], pts[i - 1][1]); ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke();
-      }
+      grid.push(g);
     }
-    ctx.strokeStyle = th.axis; ctx.strokeRect(r.x + 0.5, r.y + depthY + 0.5, fw, fh);
-    ctx.fillStyle = th.text; ctx.font = th.font; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    for (const v of niceTicks(f0, f1, Math.max(2, Math.floor(fw / 80)))) ctx.fillText(fmt(v, f1 - f0), r.x + (v - f0) / (f1 - f0) * fw, r.y + r.h + 4);
-    ctx.textAlign = 'left'; ctx.fillStyle = th.muted;
-    ctx.fillText('time →', r.x + fw + 4, r.y + depthY / 2);
-    if (opt.yLabel) { ctx.textAlign = 'right'; ctx.fillText(opt.yLabel, r.x + fw, r.y + r.h + 20); }
-    return { rect: r };
+    let zlo = opt.zRange[0], zhi = opt.zRange[1];
+    if (lin) { zlo = 0; zhi = opt.zFixed ? Math.pow(10, opt.zRange[1] / 20) : Math.max(...grid.map(g => Math.max(...g))); }
+    if (!(zhi > zlo)) zhi = zlo + 1;
+    const fa = sf0 + k0 * sg.df, fb = sf0 + k1 * sg.df, ta = rows[0].t, tb = rows[rows.length - 1].t;
+    const lvl = v => Math.max(0, Math.min(1, (v - zlo) / (zhi - zlo))), col = z => opt.enhanceLow ? Math.sqrt(z) : z;
+    // orthographic view from the front corner (high frequency, first time): u = frequency, v = time, z = level, all 0…1
+    const yaw = (opt.yaw ?? 41) * Math.PI / 180, pitch = (opt.pitch ?? 22) * Math.PI / 180, HZ = 0.55;
+    const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    const depth = (u, v) => -(u - 0.5) * sy + (v - 0.5) * cy; // larger = farther
+    const P0 = (u, v, z) => [(u - 0.5) * cy + (v - 0.5) * sy, -z * HZ * cp - depth(u, v) * sp];
+    let mnx = Infinity, mxx = -Infinity, mny = Infinity, mxy = -Infinity;
+    for (const u of [0, 1]) for (const v of [0, 1]) for (const z of [0, 1]) { const p = P0(u, v, z); mnx = Math.min(mnx, p[0]); mxx = Math.max(mxx, p[0]); mny = Math.min(mny, p[1]); mxy = Math.max(mxy, p[1]); }
+    const x0 = (opt.colorbar ? 60 : 10) + 34, x1 = w - 64, y0 = 14, y1 = h - 50;
+    const k = Math.max(1, Math.min((x1 - x0) / (mxx - mnx), (y1 - y0) / (mxy - mny)));
+    const ox = (x0 + x1) / 2 - k * (mnx + mxx) / 2, oy = (y0 + y1) / 2 - k * (mny + mxy) / 2;
+    const P = (u, v, z) => { const p = P0(u, v, z); return [ox + k * p[0], oy + k * p[1]]; };
+    const path = pts => { ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); };
+    const line = (a, b) => { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); };
+    // the back walls and the frame behind the surface
+    path([P(0, 0, 0), P(0, 1, 0), P(0, 1, 1), P(0, 0, 1)]); ctx.fillStyle = '#141414'; ctx.fill();
+    path([P(0, 1, 0), P(1, 1, 0), P(1, 1, 1), P(0, 1, 1)]); ctx.fillStyle = '#353535'; ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 1;
+    for (const [u, v] of [[0, 0], [0, 1], [1, 1]]) line(P(u, v, 0), P(u, v, 1));
+    line(P(0, 0, 1), P(0, 1, 1)); line(P(0, 1, 1), P(1, 1, 1)); line(P(0, 0, 0), P(0, 1, 0)); line(P(0, 1, 0), P(1, 1, 0));
+    // the surface: cells from the farthest to the nearest, coloured by their level and lit from above and the front left
+    const L = lut(opt.palette, opt.invert), du = 1 / (NC - 1 || 1), dv = 1 / (NR - 1);
+    const lx = 0.5 * sy - 0.35 * cy, ly = -0.5 * cy - 0.35 * sy, lz = 0.8, ln = Math.hypot(lx, ly, lz);
+    const Z = grid.map(g => Array.from(g, lvl)), cells = [];
+    for (let j = 0; j < NR - 1; j++) for (let i = 0; i < Math.max(1, NC - 1); i++) cells.push([i, j, depth((i + 0.5) * du, (j + 0.5) * dv)]);
+    cells.sort((a, b) => b[2] - a[2]);
+    const rgb = (z, s) => { const c = Math.round(col(z) * 255) * 3; return `rgb(${L[c] * s | 0},${L[c + 1] * s | 0},${L[c + 2] * s | 0})`; };
+    ctx.lineWidth = 0.6; ctx.lineJoin = 'round';
+    for (const [i, j] of cells) {
+      const i1 = Math.min(i + 1, NC - 1), a = Z[j][i], b = Z[j][i1], c = Z[j + 1][i1], d = Z[j + 1][i];
+      const gu = (b + c - a - d) / 2 * HZ / du, gv = (d + c - a - b) / 2 * HZ / dv, n = Math.hypot(gu, gv, 1);
+      const s = 0.4 + 0.6 * Math.max(0, (-gu * lx - gv * ly + lz) / (n * ln));
+      const fill = rgb(((a + b + c + d) / 4 + Math.max(a, b, c, d)) / 2, s); // between its mean and its top: narrow peaks keep their colour
+      path([P(i * du, j * dv, a), P(i1 * du, j * dv, b), P(i1 * du, (j + 1) * dv, c), P(i * du, (j + 1) * dv, d)]);
+      ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = fill; ctx.stroke();
+    }
+    // the near sides down to the floor: the first spectrum (front) and the highest frequency (right)
+    for (let i = 0; i < NC - 1; i++) { path([P(i * du, 0, Z[0][i]), P((i + 1) * du, 0, Z[0][i + 1]), P((i + 1) * du, 0, 0), P(i * du, 0, 0)]); const f = rgb((Z[0][i] + Z[0][i + 1]) / 2, 0.42); ctx.fillStyle = f; ctx.fill(); ctx.strokeStyle = f; ctx.stroke(); }
+    for (let j = 0; j < NR - 1; j++) { const a = Z[j][NC - 1], b = Z[j + 1][NC - 1]; path([P(1, j * dv, a), P(1, (j + 1) * dv, b), P(1, (j + 1) * dv, 0), P(1, j * dv, 0)]); const f = rgb((a + b) / 2, 0.3); ctx.fillStyle = f; ctx.fill(); ctx.strokeStyle = f; ctx.stroke(); }
+    // the front edges with their scales, and the level axis on the right corner
+    ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.fillStyle = INK; ctx.font = th.font;
+    const C = P(0.5, 0.5, 0);
+    const edge = (A, B, lo, hi, title) => {
+      line(A, B);
+      const ex = B[0] - A[0], ey = B[1] - A[1], len = Math.hypot(ex, ey), mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2;
+      let nx = -ey / len, ny = ex / len; if (nx * (mx - C[0]) + ny * (my - C[1]) < 0) { nx = -nx; ny = -ny; }
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      // a tick and its value; the ends' values are moved along the edge, off the corner the next edge shares
+      const mark = (t, text, along = 0) => {
+        const q = (t - lo) / (hi - lo), px = A[0] + q * ex, py = A[1] + q * ey, sh = along * (ctx.measureText(text).width / 2 + 3) / len;
+        line([px, py], [px + nx * 5, py + ny * 5]); ctx.fillText(text, px + nx * 15 + sh * ex, py + ny * 13 + sh * ey);
+      };
+      if (hi > lo) { // the two ends with their exact values, and round values between that keep clear of them
+        mark(lo, String(+lo.toPrecision(5)), 1); mark(hi, String(+hi.toPrecision(5)), -1);
+        for (const t of niceTicks(lo, hi, Math.max(2, Math.floor(len / 70)))) if (Math.min(t - lo, hi - t) / (hi - lo) * len > 38) mark(t, fmt(t, hi - lo));
+      }
+      if (title) ctx.fillText(title, mx + nx * 34, my + ny * 30);
+    };
+    edge(P(0, 0, 0), P(1, 0, 0), fa, fb, opt.yLabel || 'Hz');
+    edge(P(1, 0, 0), P(1, 1, 0), ta, tb, opt.xLabel || 's');
+    const zA = P(1, 1, 0), zB = P(1, 1, 1);
+    line(zA, zB); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    for (const t of niceTicks(zlo, zhi, Math.max(2, Math.floor((zA[1] - zB[1]) / 36)))) {
+      const y = zA[1] + (t - zlo) / (zhi - zlo) * (zB[1] - zA[1]);
+      line([zA[0], y], [zA[0] + 5, y]); ctx.fillText(fmt(t, zhi - zlo), zA[0] + 8, y);
+    }
+    if (!lin) { ctx.textBaseline = 'bottom'; ctx.fillText('dB', zB[0] + 8, zB[1] - 6); }
+    // the colour map
+    if (opt.colorbar) {
+      const bx = Math.max(12, ox + k * mnx - 110), bw = 10, by0 = y0 + 4, by1 = h - 22; // next to the box in a wide window
+      for (let y = by0; y < by1; y++) { ctx.fillStyle = rgb(1 - (y - by0) / (by1 - by0), 1); ctx.fillRect(bx, y, bw, 1); }
+      ctx.strokeStyle = '#777'; ctx.strokeRect(bx + 0.5, by0 + 0.5, bw - 1, by1 - by0 - 1);
+      ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      for (const t of niceTicks(zlo, zhi, Math.max(2, Math.floor((by1 - by0) / 40)))) ctx.fillText(fmt(t, zhi - zlo), bx + bw + 5, by1 - (t - zlo) / (zhi - zlo) * (by1 - by0));
+    }
+    return { rect: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } };
   }
 
   /* ---------- Analog gauge for instruments ---------- */

@@ -353,7 +353,7 @@
       Object.assign(params, { segmentLength: +v.segmentLength, overlap: v.overlap, window: v.window });
       if (v.remember) { S.settings.spectrogram = { segmentLength: params.segmentLength, overlap: params.overlap, window: params.window }; APP.saveSettings(); }
     }
-    APP.derive(w, 'spectrogram', params, { display: { mode: mesh ? 'mesh' : 'spectrogram' } });
+    APP.derive(w, 'spectrogram', params, { display: mesh ? { mode: 'mesh', palette: 'Hot' } : { mode: 'spectrogram' } });
   }
 
   const FILTER_TYPES = [['lowpass', 'Lowpass'], ['highpass', 'Highpass'], ['bandpass', 'Bandpass'], ['bandstop', 'Bandstop']];
@@ -752,7 +752,7 @@
     'Time FFT (mesh view) of a chirp': () => {
       const fs = 8000, y = DSP.generate({ type: 'Sweep signal', sampleRate: fs, seconds: 3, sweepStart: 200, sweepEnd: 3000, sweepType: 'Linear' });
       const s = APP.openSignal(y, fs, 'Linear chirp 200–3000 Hz', { type: 'generator' });
-      APP.derive(s, 'spectrogram', { segmentLength: 256, overlap: 50, window: 'Hann', mesh: true }, { display: { mode: 'mesh' } });
+      APP.derive(s, 'spectrogram', { segmentLength: 256, overlap: 50, window: 'Hann', mesh: true }, { display: { mode: 'mesh', palette: 'Hot' } });
     },
     'Filters (FFT and IIR)': () => {
       const fs = 8000, a = DSP.generate({ type: 'White noise', sampleRate: fs, seconds: 2, seed: 3 });
@@ -942,6 +942,7 @@
       '-',
       { label: 'Spectrogram view', key: 'F3', run: () => { const w = need('3d'); w.display.mode = 'spectrogram'; APP.requestRender(w); }, checked: () => has3D() && S.active.display.mode === 'spectrogram', en: has3D },
       { label: 'Mesh view', key: 'F2', run: () => { const w = need('3d'); w.display.mode = 'mesh'; APP.requestRender(w); }, checked: () => has3D() && S.active.display.mode === 'mesh', en: has3D },
+      { label: 'Mesh level in dB', run: () => { const w = need('3d'); w.display.meshDb = !w.display.meshDb; w.display.mode = 'mesh'; APP.requestRender(w); }, checked: () => has3D() && !!S.active.display.meshDb, en: has3D },
       { label: 'Cursor', key: 'Tab', run: () => { const w = need('3d'); w.display.crosshair = !w.display.crosshair; if (!w.fixedCursor3) w.fixedCursor3 = { x: (w.view.x0 + w.view.x1) / 2, y: (w.view.y0 + w.view.y1) / 2 }; APP.requestRender(w); }, checked: () => has3D() && S.active.display.crosshair, en: has3D },
       { label: 'Adjust Z-axis…', run: axesDialog, en: has3D },
       '-',
