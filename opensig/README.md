@@ -94,9 +94,22 @@ generator writes a `.bat` file built on these commands.
   signals (geometry, calculator) takes the right half of its band, unlinked instruments a strip along the bottom; too
   many trees for the height tile instead. **Organize automatically** (Window menu, Application settings) repeats it whenever a window opens or
   closes, or the desktop changes size.
-- **Control Window** (System control ▸ Control window, Alt+W): the analysis graph – an icon per window,
-  lines from parent to child (dotted when unlinked, coloured for the inputs of multi-input and overlay windows), "H" on
-  hidden windows. Click to select (numbers show the order), drag a rectangle to select several (Ctrl unselects),
+- **Control Window** (System control ▸ Control window, Alt+W): the analysis graph – a node per window,
+  curves from parent to child (dotted when unlinked, coloured for the inputs of multi-input and overlay windows), "H" on
+  hidden windows. **Wiring:** each node has an output port, analysis windows an input port; dragging an output onto a
+  node makes that window work on this one (`APP.link`, checked first: no loops, a signal or spectrum as input, a 3D
+  window only for cross sections), into empty space (or clicking it) opens the Add analysis menu there and places the
+  new node at the drop point; dragging an input onto a node re-links it, into empty space unlinks it; right-clicking a
+  curve unlinks / relinks it or removes an overlay. **Add analysis** in a node's menu runs the Signal tools,
+  Instruments, 3D tools and Scripts menus on that window (cursor, picker, view and settings entries left out); on all
+  selected windows from the empty-space menu. **View:** wheel zooms at the pointer (25–300 %), Shift / Alt + wheel,
+  middle-drag or Space-drag pan, Fit (F, double-click on empty space) keeps the whole graph in view at up to 100 %
+  until the user zooms or pans, 0 = 100 %, +/−; **Pictures** draws each node as a card with a live picture of its
+  window (plot canvas, video frame, instrument value), and with icons a hovered node shows its picture beside it.
+  **Layout:** left-to-right or top-to-bottom tree, Compact spacing, folding a branch into its node (± box, "+N"
+  hidden windows, fold / unfold all) – direction, spacing and pictures in localStorage, folds and hand-placed positions
+  (per direction: `display.cwPos` / `cwPosTb`) in the workspace. `CONTROL.where(id)` gives a node and its ports in client
+  coordinates (used by the tests). Click to select (numbers show the order), drag a rectangle to select several (Ctrl unselects),
   double-click to bring a window forward, Del deletes the selection. Rename a node (its window) by double-clicking its
   name, F2, or Rename… in its right-click menu: an in-place text box (Enter / Esc; empty = the automatic name for
   analysis windows); custom names are saved with workspaces and kept when settings change. Right-click an icon for its window menu, or empty

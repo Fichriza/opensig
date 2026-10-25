@@ -119,8 +119,16 @@ button { font: inherit; color: inherit; }
 .st-info { overflow: hidden; text-overflow: ellipsis; }
 /* Control window (control.js): the analysis graph */
 .win-control[hidden] { display: none; }
-.cw-body { position: relative; flex: 1; min-height: 0; overflow: auto; outline: none; background: var(--plot-bg); }
-.cw-canvas { display: block; touch-action: none; }
+.cw-body { position: relative; flex: 1; min-height: 0; overflow: hidden; outline: none; background: var(--plot-bg); }
+.cw-canvas { position: absolute; left: 0; top: 0; display: block; touch-action: none; }
+.cw-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 3px; padding: 3px 5px; background: var(--panel); border-bottom: 1px solid var(--border); font: 11px var(--sans); color: var(--text); }
+.cw-b { font: 11px var(--sans); min-width: 22px; padding: 1px 6px; line-height: 16px; border: 1px solid var(--border); border-radius: 3px; background: var(--bg); color: var(--text); cursor: pointer; }
+.cw-b:hover { border-color: #1883d7; }
+.cw-b.on { background: #1883d7; border-color: #1883d7; color: #fff; }
+.cw-zoom { min-width: 38px; text-align: center; color: var(--muted); cursor: pointer; border-radius: 3px; }
+.cw-zoom.on { color: #1883d7; }
+.cw-sep { width: 1px; align-self: stretch; margin: 1px 3px; background: var(--border); }
+.win-control.cw-min .cw-bar { display: none; }
 .cw-rename { position: absolute; z-index: 2; box-sizing: border-box; font: 12px var(--sans); text-align: center; padding: 1px 3px; border: 1px solid #1883d7; border-radius: 2px; background: var(--panel, #fff); color: var(--text, #000); outline: none; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
 .win-control.cw-min { height: auto !important; min-height: 0; }
 .win-control.cw-min .cw-body, .win-control.cw-min .win-resize { display: none; }
