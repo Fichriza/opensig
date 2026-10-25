@@ -64,8 +64,9 @@ Windows desktop app – the window and taskbar icon.*
 - **Data in and out** – WAV, FLAC, MP3, OGG, AIFF, M4A, CSV (millions of rows, and files that another program keeps
   writing), raw binary, MATLAB, NumPy, EDF / BDF / GDF, HDF5, UFF / UNV; live audio input; UDP / TCP and serial input
   in the desktop app; export to CSV, WAV, PNG and Excel.
-- **A complete user manual** inside the app, and a classic Windows look in four window styles – standard, 1990s grey,
-  2000s blue and glass – with a dark mode, and a choice of eight app icons.
+- **A complete user manual** inside the app, with the formulas behind every spectral analysis, and a classic Windows
+  look in four window styles – standard, 1990s grey, 2000s blue and glass – with a dark mode, and a choice of eight app
+  icons.
 
 The detailed feature list, file formats, automation commands and technical notes are in
 [`opensig/README.md`](opensig/README.md).

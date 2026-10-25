@@ -16,6 +16,9 @@
   const T = (id, title, kw, html) => ({ id, title, kw, html });
   const B = (id, title, html, topics) => ({ id, title, html, topics, book: true });
   const KEYS = () => '<div class="hv-keys"></div>';
+  // formulas in TeX, drawn as MathML (texmath.js): EQ`…` on a line of its own, M`…` inside the text
+  const EQ = (s, ...v) => `<div class="hv-eq">${root.TEXMATH.toMathML(String.raw(s, ...v), true)}</div>`;
+  const M = (s, ...v) => root.TEXMATH.toMathML(String.raw(s, ...v));
 
   const books = [
     B('intro', 'Introduction', '<p><i>OpenSig</i> is a workbench for looking at, measuring and transforming signals: sound, vibration, sensor data or any series of numbers. This part explains the ideas the rest of the manual builds on.</p>', [
@@ -171,6 +174,7 @@ ${SEE('harmonic', 'picker', 'markers')}`),
 <p>Two special cursors help to find related frequencies in a spectrum:</p>
 <ul><li><b>Harmonic cursor</b> – lines at 2×, 3×, 4×… the mouse position.</li>
 <li><b>Sideband cursor</b> – lines at the mouse position ± 1, 2, 3… times an offset. Set the offset in ${P('Instruments', 'Sideband cursor offset…')}, by selecting a range (its width becomes the offset), or with ${K('Space')}+mouse wheel in 1 % steps.</li></ul>
+<p>For a cursor at the frequency ${M`f`}, the harmonic cursor draws lines at ${M`h\cdot f`} (${M`h=2,3,4\ldots`}) and the sideband cursor at ${M`f\pm m\,\Delta`} (${M`m=1,2,3\ldots`}), where ${M`\Delta`} is the offset.</p>
 <p>Switch them on in ${P('Instruments')} or the window menu. Hold ${K('Space')} to show the X/Y value of every line.</p>
 <h2>Pinning</h2>
 <p>Press ${K('Enter')} to pin the cursor set where the mouse is; ${K('Shift', 'Enter')} pins it on the highest value near the mouse. A pinned set stays as lines when the mouse moves away and adds no value boxes to the graph – hold ${K('Space')} to read the values, or switch on ${P('Instruments', 'Show values of the pinned cursor')}. ${K('Enter')} again re-pins, ${K('Esc')} releases. The pin is saved with the workspace.</p>`),
@@ -219,6 +223,20 @@ ${SHOT(['FFT with default settings', 'FFT filter', 'Spectrogram', 'Time FFT'], '
 <li>To change the settings of an existing FFT window, open its ${L('properties')} (${K('Ctrl', 'P')}).</li></ul>
 <p>The FFT window is named after its parent, for example <code>FFT( 1#signal.wav)</code>, and recalculates whenever the parent's visible part changes. Zoom into a signal to see the spectrum of one event, or play it to watch the spectrum change.</p>
 ${TIP('The FFT has been checked value for value against reference spectra for every window function, result type, averaging mode and scale.')}
+<h2>How it is calculated</h2>
+<p>The visible part has ${M`N`} samples ${M`x_0\ldots x_{N-1}`} at the sampling rate ${M`f_s`}. With averaging it is cut into segments (see ${L('fftparams')}). Each segment of ${M`L`} samples is conditioned, multiplied by the window ${M`w_n`} and zero-padded to ${M`N_{\mathrm{FFT}}`} points before the transform:</p>
+${EQ`X_k=\sum_{n=0}^{L-1}w_n\left(x_n-\bar{x}\right)e^{-i2\pi kn/N_{\mathrm{FFT}}}`}
+<p>Line ${M`k=1\ldots N_{\mathrm{FFT}}/2`} lies at the frequency</p>
+${EQ`f_k=k\,\Delta f,\qquad\Delta f=\frac{f_s}{N_{\mathrm{FFT}}}`}
+<p>The DC line ${M`k=0`} is not shown. ${M`\bar{x}`} is the mean of the segment: it is removed when <b>Subtract mean</b> is on, and always when a window is applied. The result types are:</p>
+<table class="hv-table hv-mtable"><tr><th>Show result as</th><th>Formula</th><th>Unit</th></tr>
+<tr><td>Magnitude</td><td>${M`M_k=\frac{2K}{L'}\left|X_k\right|`}</td><td>u</td></tr>
+<tr><td>Power spectrum</td><td>${M`P_k=M_k^2`}</td><td>u²</td></tr>
+<tr><td>Power spectral density (PSD)</td><td>${M`S_k=\frac{8\left|X_k\right|^2}{L'f_sG}`}</td><td>u²/Hz</td></tr>
+<tr><td>Phase</td><td>${M`\varphi_k=\frac{180}{\pi}\arg X^{\circ}_k`}</td><td>deg</td></tr>
+<tr><td>Real part, Imaginary part</td><td>${M`\frac{\operatorname{Re}X_k}{L'}`}, ${M`\frac{\operatorname{Im}X_k}{L'}`}</td><td>u</td></tr></table>
+<p>u is the unit of the signal, ${M`L'`} is ${M`L`} rounded down to an even number, and ${M`K`} and ${M`G`} are the window's amplitude correction and noise factor (see the table of windows in ${L('fftparams')}). With them, a sine of amplitude ${M`A`} gives a magnitude peak of about ${M`A`}, whatever the window. ${M`X^{\circ}_k`} is the transform of the segment without the window, so the window does not change the phase.</p>
+<p>Averaging, the dB scale, smoothing and the significance test are then applied to these values; ${L('fftparams')} gives their formulas.</p>
 ${SEE('fftparams', 'spectrogram', 'fftfilter', 'instruments')}`),
       T('fftparams', 'Changing FFT calculation parameters', ['window function', 'Hann', 'Hamming', 'Blackman', 'flat top', 'zero padding', 'averaging', 'overlap', 'dB', 'dBFS', 'smoothing', 'Siegel', 'A-weighting', 'C-weighting'], `
 <p>The FFT dialog (${P('Signal tools', 'Spectral analysis defaults…')}, FFT with custom settings, or the properties of an FFT window) has these groups:</p>
@@ -238,6 +256,53 @@ ${SEE('fftparams', 'spectrogram', 'fftfilter', 'instruments')}`),
 <li><b>Test for significant peaks</b> (Siegel's test) at 95 % or 99 % confidence.</li>
 <li><b>Displayed frequency range</b> – limit the X axis to a band.</li></ul>
 ${NOTE(`${P('Signal tools', 'Import FFT settings (.swt / .sws)…')} reads FFT settings from <code>.swt</code> tool and <code>.sws</code> workspace files, and ${P('Signal tools', 'Save FFT settings as .swt tool…')} writes them back.`)}
+<h2>How the settings are calculated</h2>
+<h3>Segments and averaging</h3>
+<p>With <b>Split input in overlapping segments</b>, ${M`J`} segments that overlap by the fraction ${M`o`} cover the ${M`N`} visible samples:</p>
+${EQ`L=\left\lfloor\frac{N}{J-(J-1)\,o}\right\rfloor,\qquad h=\left\lfloor L\,(1-o)\right\rfloor`}
+<p>Segment ${M`j`} starts at sample ${M`jh`}. The results ${M`Y_k`} of the segments – magnitudes, powers or densities – are averaged line by line:</p>
+${EQ`\bar{Y}_k=\frac{1}{J}\sum_{j=0}^{J-1}Y_k^{(j)}`}
+<p><b>Average complex spectra</b> averages the transforms instead, ${M`\bar{X}_k=\frac{1}{J}\sum_jX_k^{(j)}`}, and calculates the result from ${M`\bar{X}_k`}: components that are not in phase in every segment cancel out. <b>Average last X spectra</b> averages the latest results of a played or live signal, ${M`\bar{Y}_k(t)=\frac{1}{X}\sum_{m=0}^{X-1}Y_k(t-m)`}; nothing is shown until X spectra have been collected.</p>
+<h3>Signal conditioning</h3>
+<ul><li><b>Subtract mean</b> – ${M`x_n-\bar{x}`} with ${M`\bar{x}=\frac{1}{L}\sum_nx_n`}, per segment.</li>
+<li><b>Remove linear trend</b> – the least-squares line through the visible part is subtracted: ${M`x_n-(a+bn)`}, where ${M`a`} and ${M`b`} minimise ${M`\sum_n\left(x_n-a-bn\right)^2`}.</li>
+<li><b>Remove values &gt; N · standard deviation</b> – with ${M`c`} the N of the dialog, a sample with ${M`\left|x_n-\bar{x}\right|>c\,\sigma`} is replaced by ${M`\bar{x}`}, where ${M`\sigma=\sqrt{\frac{1}{N}\sum_n\left(x_n-\bar{x}\right)^2}`}.</li></ul>
+<h3>Window functions</h3>
+<p>For ${M`n=0\ldots L-1`}, with ${M`\theta=\frac{2\pi n}{L-1}`}. ${M`K`} is the window's amplitude correction (one over its mean) and ${M`G`} its noise factor, both used in the formulas of ${L('fft')}:</p>
+<table class="hv-table hv-mtable"><tr><th>Window</th><th>${M`w_n`}</th><th>${M`K`}</th><th>${M`G`}</th></tr>
+<tr><td>Rectangle</td><td>${M`1`}</td><td>1</td><td>1</td></tr>
+<tr><td>Hann</td><td>${M`0.5-0.5\cos\frac{2\pi(n+1)}{L+1}`}</td><td>2</td><td>1.5</td></tr>
+<tr><td>Hamming</td><td>${M`0.54-0.46\cos\theta`}</td><td>1/0.54</td><td>1.3676</td></tr>
+<tr><td>Blackman</td><td>${M`0.42-0.5\cos\theta+0.08\cos2\theta`}</td><td>1/0.40</td><td>1.7268</td></tr>
+<tr><td>Blackman-Harris</td><td>${M`0.35875-0.48829\cos\theta+0.14128\cos2\theta-0.01168\cos3\theta`}</td><td>1/0.36</td><td>2.0</td></tr>
+<tr><td>Nuttall</td><td>${M`0.355768-0.487396\cos\theta+0.144232\cos2\theta-0.012604\cos3\theta`}</td><td>1/0.354</td><td>1.5</td></tr>
+<tr><td>Flat top</td><td>${M`\frac{1-1.93\cos\theta+1.29\cos2\theta-0.388\cos3\theta+0.028\cos4\theta}{4.636}`}</td><td>4.8955</td><td>0.1596</td></tr>
+<tr><td>Triangle</td><td>${M`1-\frac{\left|n-(L-1)/2\right|}{(L+1)/2}`}</td><td>2</td><td>1.33</td></tr>
+<tr><td>Tukey (r = 25 %, 50 %)</td><td>${M`\begin{cases}1 & d\ge e\\ \frac{1}{2}\left(1-\cos\frac{\pi d}{e}\right) & d<e\end{cases}`} with ${M`d=\min(n,L-1-n)`}, ${M`e=\frac{r\,(L-1)}{2}`}</td><td>1/0.88, 1/0.75</td><td>1.10, 1.22</td></tr>
+<tr><td>Kaiser (β = 2, 4, 8)</td><td>${M`\frac{I_0\left(\beta\sqrt{1-t^2}\right)}{I_0(\beta)}`} with ${M`t=\frac{n-(L-1)/2}{L/2}`}</td><td>1/0.785, 1/0.5975, 2.3097</td><td>1.5, 2.0, 2.5</td></tr>
+<tr><td>Gaussian</td><td>${M`e^{-t^2/2}`} with ${M`t=\frac{n-(L-1)/2}{0.2\,(L-1)}`}</td><td>1/0.49</td><td>1.39</td></tr>
+<tr><td>Exponential (damping)</td><td>${M`0.01^{\,n/(L-1)}`}</td><td>1</td><td>1</td></tr></table>
+<p>${M`I_0`} is the modified Bessel function of the first kind, order 0. Without a window the rectangle is used.</p>
+<h3>Zero-padding</h3>
+<ul><li><b>Never</b> – ${M`N_{\mathrm{FFT}}=L`}, rounded up to an even number.</li>
+<li><b>Optimal</b> – the smallest even ${M`N_{\mathrm{FFT}}\ge L`} whose only prime factors are 2, 3 and 5 (fast to transform).</li>
+<li><b>Next power of 2</b>, and 2, 4 or 8 times it – ${M`N_{\mathrm{FFT}}=m\cdot2^{\lceil\log_2L\rceil}`} with ${M`m=1,2,4,8`}.</li></ul>
+<p>Padding makes the line spacing ${M`\Delta f=f_s/N_{\mathrm{FFT}}`} finer; two frequencies closer than about ${M`f_s/L`} still cannot be told apart.</p>
+<h3>Spectrum units</h3>
+${EQ`L_k=20\log_{10}M_k\quad\text{(magnitude)},\qquad L_k=10\log_{10}P_k\quad\text{(power, PSD)}`}
+<p><b>dBFS</b> subtracts the full-scale value ${M`A_{\mathrm{FS}}`}: ${M`L_k-20\log_{10}A_{\mathrm{FS}}`}. With "the maximum" as full scale, the highest line becomes 0 dBFS. The X unit CPM is ${M`60\,f`}.</p>
+<h3>Smoothing</h3>
+<p>Smoothing comes after the dB scale. It is a Hann-weighted moving average over an odd number ${M`S`} of lines, ${M`h=(S-1)/2`} on each side:</p>
+${EQ`\tilde{Y}_k=\frac{\sum_{j=-h}^{h}v_j\,Y_{k+j}}{\sum_{j=-h}^{h}v_j},\qquad v_j=\sin^2\frac{\pi\,(j+h+1)}{S+1}`}
+<p>Near the ends of the spectrum only the lines that exist are counted.</p>
+<h3>Custom filter curves, A- and C-weighting</h3>
+<p>A curve gives a gain ${M`g(f)`} at every frequency (a curve in dB, ${M`W(f)`}, gives ${M`g=10^{W/20}`}). The magnitude is multiplied by ${M`g(f_k)`}, the power and the PSD by ${M`g(f_k)^2`}. The A- and C-weighting curves of IEC 61672 are</p>
+${EQ`R_A(f)=\frac{12194^2f^4}{\left(f^2+20.6^2\right)\sqrt{\left(f^2+107.7^2\right)\left(f^2+737.9^2\right)}\left(f^2+12194^2\right)},\qquad A(f)=20\log_{10}R_A(f)+2.00~\mathrm{dB}`}
+${EQ`R_C(f)=\frac{12194^2f^2}{\left(f^2+20.6^2\right)\left(f^2+12194^2\right)},\qquad C(f)=20\log_{10}R_C(f)+0.06~\mathrm{dB}`}
+<h3>Test for significant peaks (Siegel)</h3>
+<p>On the ${M`m`} amplitudes ${M`a_k`} of the spectrum (the magnitude, or the square root of a power), a line passes when its share of the total exceeds Siegel's fraction ${M`\lambda=0.6`} of Fisher's critical value ${M`g_\alpha`}:</p>
+${EQ`\frac{a_k}{\sum_ja_j}>\lambda\,g_\alpha,\qquad g_\alpha=1-\left(\frac{\alpha}{m}\right)^{1/(m-1)}`}
+<p>${M`\alpha=0.05`} for 95 % and ${M`\alpha=0.01`} for 99 % confidence. The lines that do not pass are set to 0.</p>
 ${SEE('fft')}`),
       T('calculator', 'Signal Calculator', ['calculator', 'expression', 'formula', 'math', 'cross-spectrum', 'coherence', 'FRF', 'order analysis'], `
 <p>${P('Signal tools', 'Signal calculator…')} creates a window from a formula over other windows. Windows are named <code>W1</code>, <code>W2</code>… (the number in their caption). For example:</p>
@@ -246,7 +311,21 @@ ${SEE('fft')}`),
 <li><code>db(W3)</code> – a spectrum in decibels</li>
 <li><code>coherence(W1, W2)</code> – how strongly two signals are related per frequency</li></ul>
 <p>Functions include arithmetic and trigonometry (<code>abs</code>, <code>sqrt</code>, <code>log</code>, <code>exp</code>, <code>sin</code>…), <code>min</code>, <code>max</code>, <code>mean</code>, <code>rms</code>, <code>smooth</code>, <code>delay</code>, and two-signal analyses: <code>xcorr</code>, <code>conv</code>, <code>xspec</code> (cross-spectrum), <code>coherence</code>, <code>gain</code>, <code>frfmag</code>, <code>phase</code>, <code>align</code>. <code>cfft</code> and <code>ifft</code> transform to the complex spectrum and back (<code>re</code>, <code>im</code> take its parts), and <code>toorder</code> / <code>fromorder</code> resample to and from shaft orders for order analysis.</p>
-<p>The result stays linked to every window in the formula.</p>`),
+<p>The result stays linked to every window in the formula.</p>
+<h2>How the spectral functions are calculated</h2>
+<p><code>xspec</code>, <code>coherence</code>, <code>gain</code>, <code>frfmag</code> and <code>phase</code> use Welch's method. Both signals are cut into segments of ${M`L`} samples (the optional third argument, 1024 by default) with 50 % overlap; each segment loses its mean, gets a Hann window and is transformed with ${M`N=2^{\lceil\log_2L\rceil}`} points, giving ${M`A_k^{(j)}`} and ${M`B_k^{(j)}`} for the segments ${M`j=1\ldots J`}. With the sums (* is the complex conjugate)</p>
+${EQ`S_{ab}(k)=\sum_{j=1}^{J}A_k^{(j)*}B_k^{(j)},\qquad S_{aa}(k)=\sum_j\left|A_k^{(j)}\right|^2,\qquad S_{bb}(k)=\sum_j\left|B_k^{(j)}\right|^2`}
+<table class="hv-table hv-mtable"><tr><th>Function</th><th>Formula</th></tr>
+<tr><td><code>xspec(a, b)</code></td><td>${M`\frac{2\left|S_{ab}\right|}{J\left(\sum_nw_n\right)^2}`}</td></tr>
+<tr><td><code>coherence(a, b)</code></td><td>${M`\gamma^2=\frac{\left|S_{ab}\right|^2}{S_{aa}S_{bb}}`}, from 0 (unrelated) to 1</td></tr>
+<tr><td><code>gain(a, b)</code></td><td>${M`\left|H_1\right|=\frac{\left|S_{ab}\right|}{S_{aa}}`} – the frequency response from a to b</td></tr>
+<tr><td><code>frfmag(a, b)</code></td><td>${M`20\log_{10}\left|H_1\right|`}</td></tr>
+<tr><td><code>phase(a, b)</code></td><td>${M`\frac{180}{\pi}\arg S_{ab}`} in degrees</td></tr>
+<tr><td><code>xcorr(a, b)</code></td><td>${M`r_{ab}(\ell)=\frac{\sum_n\left(a_{n+\ell}-\bar{a}\right)\left(b_n-\bar{b}\right)}{\sqrt{\sum_n\left(a_n-\bar{a}\right)^2\sum_n\left(b_n-\bar{b}\right)^2}}`} for ${M`\ell=-(N-1)\ldots N-1`}</td></tr>
+<tr><td><code>conv(a, b)</code></td><td>${M`(a*b)_n=\sum_ma_m\,b_{n-m}`}</td></tr>
+<tr><td><code>cfft(a)</code></td><td>${M`X_k=\sum_{n=0}^{N-1}a_n\,e^{-i2\pi kn/N}`}, shown as ${M`\frac{2}{N}\left|X_k\right|`}; <code>re</code> and <code>im</code> give ${M`\frac{2}{N}\operatorname{Re}X_k`} and ${M`\frac{2}{N}\operatorname{Im}X_k`}</td></tr>
+<tr><td><code>ifft(c)</code></td><td>${M`x_n=\frac{1}{N}\sum_{k=0}^{N-1}X_k\,e^{i2\pi kn/N}`}</td></tr>
+<tr><td><code>toorder(a, rpm, R)</code></td><td>${M`a`} at the shaft angles ${M`\theta=m/R`} revolutions (R samples per revolution, 32 by default), where ${M`\theta(t)=\int_0^t\frac{\mathrm{rpm}(t')}{60}\,dt'`}; an FFT of the result has shaft orders on its X axis</td></tr></table>`),
       T('editnode', 'Edit node (table)', ['edit node', 'table', 'spreadsheet', 'excel', 'edit values', 'change values', 'formula', 'paste values'], `
 <p>An <b>Edit node</b> lets you change single values of a window without touching it: it is a window of its own, linked to the window it was made from, whose result is the parent's values with your changes. Every window you create from the Edit node – an FFT, a filter, an instrument – uses the edited values.</p>
 <p>Make one with ${P('Signal tools', 'Edit node (table)…')}, ${P('Edit', 'Edit node (table)…')} or "Add edit node (table)" in the window menu. Its window is a simple spreadsheet:</p>
@@ -264,11 +343,19 @@ ${SEE('fft')}`),
 ${SEE('linked', 'calculator', 'control')}`),
       T('autocorr', 'Autocorrelation', ['autocorrelation', 'periodicity', 'correlation'], `
 <p>${P('Signal tools', 'Autocorrelation')} shows how similar the visible part is to shifted copies of itself. Peaks at a lag reveal a repeating pattern with that period, even when it is hidden in noise.</p>
-<p>For the correlation of two different signals use <code>xcorr(W1, W2)</code> in the ${L('calculator')}.</p>`),
+<p>For the correlation of two different signals use <code>xcorr(W1, W2)</code> in the ${L('calculator')}.</p>
+<h2>How it is calculated</h2>
+${EQ`\rho_m=\frac{\sum_{n=0}^{N-1-m}\left(x_n-\bar{x}\right)\left(x_{n+m}-\bar{x}\right)}{\sum_{n=0}^{N-1}\left(x_n-\bar{x}\right)^2},\qquad m=0\ldots N-1`}
+<p>It is drawn against the lag ${M`\tau=m/f_s`}, and ${M`\rho_0=1`}. OpenSig calculates the sums with the FFT (Wiener–Khinchin theorem): the inverse transform of ${M`\left|X_k\right|^2`}, zero-padded to at least ${M`2N`} points so that the end of the signal does not wrap around to its start.</p>`),
       T('fftfilter', 'FFT Filter', ['filter', 'low-pass', 'high-pass', 'band-pass', 'band-stop', 'FFT filter', 'filter curve'], `
 <p>${P('Signal tools', 'FFT filter…')} (${K('Ctrl', 'Y')}) removes frequencies by working on the spectrum: the signal is transformed, the unwanted frequencies are suppressed and the result is transformed back. Choose low-pass, high-pass, band-pass or band-stop with the cut-off frequencies, or a custom filter curve.</p>
 <p>The <b>filter slope width</b> makes the transition gradual; 0 gives a brick-wall filter. FFT filters have no phase shift.</p>
 <p>${P('File', 'Save as filter curve…')} turns a spectrum into a curve you can apply, and ${P('File', 'Import filter curve (.flt) / filter bank (.flb)…')} reads existing curves.</p>
+<h2>How it is calculated</h2>
+<p>The mean is removed, the signal is zero-padded to ${M`N=2^{\lceil\log_2 2n\rceil}`} points and transformed. Every line is multiplied by the filter's gain ${M`H(f_k)`}, the result is transformed back, and the mean is put back for low-pass (and band-stop) filters. With the slope width ${M`\Delta`}, an edge at ${M`f_c`} rises as a raised cosine:</p>
+${EQ`c(f;f_c)=\begin{cases}0 & f\le f_c-\Delta/2\\ \frac{1}{2}-\frac{1}{2}\cos\frac{\pi\left(f-f_c+\Delta/2\right)}{\Delta} & \left|f-f_c\right|<\Delta/2\\ 1 & f\ge f_c+\Delta/2\end{cases}`}
+${EQ`H_{\mathrm{LP}}=1-c(f;f_1),\quad H_{\mathrm{HP}}=c(f;f_1),\quad H_{\mathrm{BP}}=\min\left(c(f;f_1),\,1-c(f;f_2)\right),\quad H_{\mathrm{BS}}=1-H_{\mathrm{BP}}`}
+<p>"Reduce stop-band amplitude by D dB" sets a floor: ${M`H'=s+(1-s)\,H`} with ${M`s=10^{-D/20}`}. With ${M`\Delta=0`} the edges are steps. The gain is real and the same for positive and negative frequencies, so the filter shifts no phase.</p>
 ${SEE('iirfilter')}`),
       T('iirfilter', 'IIR Filter', ['IIR', 'Butterworth', 'filter order', 'recursive filter'], `
 <p>${P('Signal tools', 'IIR filter…')} applies a Butterworth filter – low-pass, high-pass, band-pass or band-stop – of order 2 to 12. Higher orders cut more steeply. Unlike the ${L('fftfilter')}, an IIR filter works sample by sample like an analogue filter and shifts the phase.</p>`),
@@ -295,24 +382,45 @@ ${SEE('iirfilter')}`),
 <ul><li>${P('Signal tools', 'Envelope (Hilbert transform)')} – the amplitude envelope of a modulated signal, widely used for bearing diagnostics.</li>
 <li>${P('Signal tools', 'Envelope (local max method)')} – an envelope through the local maxima.</li>
 <li>${P('Signal tools', 'Instantaneous frequency (Hilbert transform)')} – the frequency at every moment, for sweeps and frequency-modulated signals.</li></ul>
-<p>An FFT of the envelope shows the modulation frequencies.</p>`),
+<p>An FFT of the envelope shows the modulation frequencies.</p>
+<h2>How it is calculated</h2>
+<p>Both use the analytic signal ${M`z_n`}: the FFT of the whole signal with the negative frequencies removed and the positive ones doubled, transformed back:</p>
+${EQ`z_n=\frac{1}{N}\sum_{k=0}^{N-1}H_kX_k\,e^{i2\pi kn/N},\qquad H_k=\begin{cases}1 & k=0,\ k=N/2\\ 2 & 0<k<N/2\\ 0 & k>N/2\end{cases}`}
+${EQ`e_n=\left|z_n\right|,\qquad f_n=\frac{f_s}{2\pi}\operatorname{wrap}\left(\arg z_n-\arg z_{n-1}\right)`}
+<p>${M`e_n`} is the envelope and ${M`f_n`} the instantaneous frequency; wrap brings the phase step into ${M`(-\pi,\pi]`}. The real part of ${M`z_n`} is the signal itself, the imaginary part its Hilbert transform.</p>`),
       T('zerocross', 'Zero-crossings and cepstrum', ['zero crossing', 'cepstrum', 'quefrency', 'echo'], `
 <p>${P('Signal tools', 'Zero-crossings')} marks where the signal crosses zero; see also the zero-crossing rate instrument.</p>
-<p>${P('Signal tools', 'Cepstrum')} is the spectrum of the logarithmic spectrum. Peaks reveal families of evenly spaced harmonics or sidebands, and echoes.</p>`),
+<p>${P('Signal tools', 'Cepstrum')} is the spectrum of the logarithmic spectrum. Peaks reveal families of evenly spaced harmonics or sidebands, and echoes.</p>
+<h2>How the cepstrum is calculated</h2>
+${EQ`c_n=\frac{1}{N}\sum_{k=0}^{N-1}\ln\left|X_k\right|e^{i2\pi kn/N},\qquad n=0\ldots N/2-1`}
+<p>${M`X_k`} is the FFT of the visible part after removing the mean and applying a Hann window. The X axis is the quefrency ${M`\tau=n/f_s`}: harmonics at ${M`f_0,2f_0,3f_0\ldots`} give a peak at ${M`\tau=1/f_0`}, an echo after ${M`T`} seconds a peak at ${M`\tau=T`}.</p>`),
       T('wavelet', 'Wavelet denoising', ['wavelet', 'denoise', 'Haar', 'Daubechies'], `
 <p>${P('Signal tools', 'Wavelet denoising…')} splits the signal into wavelet levels (Haar or Daubechies 2/4/6), shrinks the small coefficients that mostly contain noise, and rebuilds the signal. Choose the number of levels, the threshold rule (universal, robust per level, or a fixed 3σ) and soft or hard shrinkage.</p>
 ${SEE('cwt')}`),
       T('tacho', 'Tacho signal to RPM', ['tacho', 'RPM', 'speed', 'pulses', 'rotation'], `
 <p>${P('Signal tools', 'Convert tacho signal to RPM…')} turns a pulse signal from a speed sensor into rotational speed over time. Enter the pulses per revolution and choose RPM or Hz.</p>`),
       T('align', 'Aligning signals', ['align', 'sync', 'delay', 'time shift'], `
-<p>${P('Signal tools', 'Align signals (sync)…')} finds the time shift between signals by cross-correlation and shifts them into line, for example two recordings of the same event made by different devices.</p>`),
+<p>${P('Signal tools', 'Align signals (sync)…')} finds the time shift between signals by cross-correlation and shifts them into line, for example two recordings of the same event made by different devices.</p>
+<p>The delay of each signal ${M`b`} against the first signal ${M`a`} is the shift with the highest cross-correlation (see ${L('calculator')}): ${M`D=\arg\max_d\sum_n\left(a_n-\bar{a}\right)\left(b_{n+d}-\bar{b}\right)`} samples, or ${M`D/f_s`} seconds.</p>`),
       T('octave', 'Octave plots', ['octave', '1/3 octave', 'third octave', 'fractional octave', 'filter bank', 'acoustics'], `
 <p>${P('Signal tools', 'Octave plot')} and ${P('Signal tools', '1/3 octave plot')} show the level in standard frequency bands, as used in acoustics and noise measurement. ${P('Signal tools', 'Other octave plots')} adds 1/6, 1/9 and 1/12 octaves and a dialog with A- or C-weighting.</p>
-<p>${P('Signal tools', 'Custom filter bank plot…')} uses bands you define, one "from;to" line per band in Hz.</p>`),
+<p>${P('Signal tools', 'Custom filter bank plot…')} uses bands you define, one "from;to" line per band in Hz.</p>
+<h2>How it is calculated</h2>
+<p>For 1/b octaves (b = 1, 3, 6, 9 or 12) the bands are the base-10 bands of IEC 61260, with ${M`G=10^{3/10}`}. Band ${M`i`} has the mid-band frequency and band edges</p>
+${EQ`f_m=\begin{cases}1000\cdot G^{\,i/b} & b\ \text{odd}\\ 1000\cdot G^{\,(2i+1)/(2b)} & b\ \text{even}\end{cases},\qquad f_{1,2}=f_m\,G^{\mp1/(2b)}`}
+<p>The level of a band sums the powers of the FFT lines inside it. The spectrum is a Hann-windowed FFT of the whole visible part, each line's power corrected for the window's noise bandwidth so that the sum is the mean square in the band:</p>
+${EQ`L_m=10\log_{10}\sum_{f_1\le f_k\le f_2}\tilde{P}_k\,10^{W(f_k)/10},\qquad\tilde{P}_k=\frac{2\left|X_k\right|^2}{N\sum_nw_n^2}`}
+<p>${M`W(f)`} is the A- or C-weighting in dB (see ${L('fftparams')}), or 0. Bands narrower than the line spacing are left out. A custom filter bank plot sums the lines between the edges you give, and draws each band at ${M`\sqrt{f_1f_2}`}.</p>`),
       T('overtime', 'Instrument values over time', ['over time', 'trend', 'history', 'band level'], `
 <p>${P('Signal tools', 'Instrument values over time…')} runs an instrument at successive positions of a signal and draws the results as a new signal – for example the RMS level or the dominant frequency over the whole recording.</p>`),
       T('srs', 'Shock Response Spectrum', ['SRS', 'shock', 'shock response'], `
-<p>${P('Signal tools', 'Shock Response Spectrum (SRS)…')} shows the peak response of a series of single-degree-of-freedom systems to a shock, against their natural frequency. It is used to judge how damaging a mechanical shock is.</p>`),
+<p>${P('Signal tools', 'Shock Response Spectrum (SRS)…')} shows the peak response of a series of single-degree-of-freedom systems to a shock, against their natural frequency. It is used to judge how damaging a mechanical shock is.</p>
+<h2>How it is calculated</h2>
+<p>For each natural frequency ${M`f_j=f_{\min}\,2^{j/p}`} (p points per octave, up to ${M`f_{\max}`} and ${M`f_s/2`}), the signal drives a single-degree-of-freedom system with the damping ratio ${M`\zeta=\frac{1}{2Q}`}. Its absolute acceleration response is simulated with Smallwood's ramp-invariant recursive filter (${M`\Delta t=1/f_s`}):</p>
+${EQ`y_n=b_0x_n+b_1x_{n-1}+b_2x_{n-2}+a_1y_{n-1}+a_2y_{n-2}`}
+${EQ`\omega=2\pi f_j,\quad\omega_d=\omega\sqrt{1-\zeta^2},\quad E=e^{-\zeta\omega\Delta t},\quad K=\omega_d\Delta t,\quad C=E\cos K,\quad S=\frac{E\sin K}{K}`}
+${EQ`b_0=1-S,\quad b_1=2\,(S-C),\quad b_2=E^2-S,\quad a_1=2C,\quad a_2=-E^2`}
+<p>The spectrum shows ${M`\max_ny_n`} (peak positive), ${M`\max_n(-y_n)`} (peak negative) or the larger of the two, in the unit of the input.</p>`),
       T('peaks', 'Peak detection', ['peak detection', 'peaks', 'threshold', 'peak count', 'prominence', 'valleys', 'find peaks', 'z-score', 'wavelet peaks', 'copy peaks'], `
 <p>${P('Signal tools', 'Peak detection…')} (also in the window menu) marks every peak in the visible part with its position and value. It is a setting of the signal window rather than a new window, so the markers follow when you zoom or play. Choose one of six <b>methods</b>:</p>
 <table class="hv-table"><tr><th>Method</th><th>Finds</th><th>Good for</th></tr>
@@ -346,11 +454,24 @@ ${SEE('cwt')}`),
     B('three', '3D Analysis', '<p>Tools that show how a spectrum changes over time.</p>', [
       T('spectrogram', 'Spectrogram', ['spectrogram', 'time-frequency', 'waterfall', 'Ctrl+G'], `
 <p>${P('3D tools', 'Spectrogram…')} (${K('Ctrl', 'G')}) cuts the visible part into overlapping segments, calculates the spectrum of each and shows them side by side: time on the X axis, frequency on the Y axis and level as colour. ${P('3D tools', 'Spectrogram with default settings')} skips the dialog.</p>
+<h2>How it is calculated</h2>
+<p>The visible part is cut into segments of ${M`L`} samples that overlap by the fraction ${M`o`}: segment ${M`j`} starts at ${M`jh`}, with ${M`h=\operatorname{round}\left(L\,(1-o)\right)`}. Each segment loses its mean, is multiplied by the window and transformed with ${M`N=2^{\lceil\log_2L\rceil}`} points:</p>
+${EQ`X_k^{(j)}=\sum_{n=0}^{L-1}w_n\left(x_{jh+n}-\bar{x}^{(j)}\right)e^{-i2\pi kn/N}`}
+${EQ`Z_{jk}=20\log_{10}\frac{c_k\left|X_k^{(j)}\right|}{\sum_nw_n},\qquad c_k=\begin{cases}1 & k=0,\ k=N/2\\ 2 & \text{otherwise}\end{cases}`}
+<p>${M`Z_{jk}`} is drawn at the centre of the segment, ${M`t_j=\left(jh+L/2\right)/f_s`}, and at the frequency ${M`f_k=kf_s/N`}. Dividing by ${M`\sum_nw_n`} makes a sine of amplitude ${M`A`} show as ${M`20\log_{10}A`} dB. Long signals are thinned to at most 2000 evenly spaced segments.</p>
 ${SEE('timefft', 'views3d', 'cursor3d')}`),
       T('timefft', 'Time FFT', ['time FFT', 'mesh', 'waterfall', '3D', 'Ctrl+T'], `
-<p>${P('3D tools', 'Time FFT…')} (${K('Ctrl', 'T')}) calculates the same series of spectra as the ${L('spectrogram')} and shows them as a 3D mesh. ${P('3D tools', 'Time FFT statistics…')} reduces it to the average, minimum or maximum spectrum.</p>`),
+<p>${P('3D tools', 'Time FFT…')} (${K('Ctrl', 'T')}) calculates the same series of spectra as the ${L('spectrogram')} and shows them as a 3D mesh. ${P('3D tools', 'Time FFT statistics…')} reduces it to the average, minimum or maximum spectrum.</p>
+<h2>How it is calculated</h2>
+<p>The mesh is the matrix ${M`Z_{jk}`} of the ${L('spectrogram')}. Time FFT statistics reduces the ${M`J`} segments inside a time range to one spectrum: the energy average, the maximum, the minimum or the standard deviation over ${M`j`}:</p>
+${EQ`\bar{Z}_k=10\log_{10}\frac{1}{J}\sum_j10^{Z_{jk}/10},\qquad\max_jZ_{jk},\qquad\min_jZ_{jk}`}
+<p><b>Sum 3D over frequency range</b> gives the level of a band in every segment, ${M`10\log_{10}\sum_{k=k_1}^{k_2}10^{Z_{jk}/10}`}.</p>`),
       T('cwt', 'Continuous wavelet transform', ['CWT', 'wavelet', 'Morlet', 'scalogram'], `
-<p>${P('3D tools', 'Continuous wavelet transform (CWT)…')} shows a time-frequency picture using Morlet wavelets. Unlike a spectrogram, its time resolution is finer at high frequencies and its frequency resolution finer at low ones – good for short events in slower signals.</p>`),
+<p>${P('3D tools', 'Continuous wavelet transform (CWT)…')} shows a time-frequency picture using Morlet wavelets. Unlike a spectrogram, its time resolution is finer at high frequencies and its frequency resolution finer at low ones – good for short events in slower signals.</p>
+<h2>How it is calculated</h2>
+<p>OpenSig uses the analytic Morlet wavelet in the frequency domain. The visible part loses its mean, is zero-padded to ${M`N`} points (a power of 2) and transformed once. Then, for each frequency ${M`f`} of the grid,</p>
+${EQ`W_n(f)=\frac{1}{N}\sum_{k=1}^{N/2-1}X_k\,\hat{\psi}_f(\omega_k)\,e^{i2\pi kn/N},\qquad\hat{\psi}_f(\omega)=2\,e^{-\left(s\omega-\omega_0\right)^2/2},\quad s=\frac{\omega_0}{2\pi f},\quad\omega_k=\frac{2\pi kf_s}{N}`}
+<p>is shown in dB, ${M`20\log_{10}\left|W_n(f)\right|`}. In time, the wavelet is a wave of frequency ${M`f`} under a Gaussian envelope with the standard deviation ${M`s`} seconds, so high frequencies get short wavelets. A larger ${M`\omega_0`} (6 by default) gives a finer frequency and a coarser time resolution.</p>`),
       T('views3d', '3D views and palettes', ['mesh view', 'spectrogram view', 'palette', 'colour map', 'Z axis', 'F2', 'F3'], `
 <p>Every 3D window can be shown as a <b>spectrogram</b> (${K('F3')}) or a <b>mesh</b> (${K('F2')}). ${P('3D tools', 'Palette')} chooses one of 13 colour palettes, ${P('3D tools', 'Adjust Z-axis…')} sets the level range, ${P('3D tools', 'Show colour map')} adds the colour scale and ${P('3D tools', 'Invert colours')} reverses it. "Optimize colours for low amplitudes" brings out weak components.</p>`),
       T('cursor3d', '3D cursor and slices', ['3D cursor', 'slice', 'extract', 'Tab'], `
@@ -425,6 +546,8 @@ ${SEE('geodraw', 'geoanim')}`),
 <ul><li><b>Time (slow motion)</b> – the measured motion (1/1000 to real time) over the visible part of the signals.</li>
 <li><b>ODS at a frequency</b> – the operating deflection shape: the amplitude and phase of every channel at that frequency, relative to the reference channel (cross-spectrum ÷ √auto-spectrum of the reference).</li>
 <li><b>Mode shape (FDD)</b> – Frequency Domain Decomposition: the cross-spectral matrix of all channels is decomposed at every frequency; at a resonance one singular value dominates and its singular vector is the mode shape. The <b>FDD</b> tab plots the first three singular values; click a peak, or one of the frequency buttons, to animate its mode.</li></ul>
+<p>The ODS of channel ${M`k`} at the frequency ${M`f`}, with ${M`r`} the reference channel and ${M`G`} the cross-spectral matrix (see ${L('geomodes')} for it and for the FDD), is</p>
+${EQ`\psi_k(f)=\frac{G_{kr}(f)}{\sqrt{G_{rr}(f)}}`}
 <h2>The FDD plot</h2>
 <p>Drag over a frequency range to show only that range, turn the mouse wheel to zoom in or out around the pointer, ${K('Shift')}+drag to move the range, and double-click (or <b>Whole range</b>) to see all frequencies again. The level axis follows the range shown, the frequency and level under the pointer are shown in the corner, and the peak buttons list the peaks inside the range – zoom into a band to find modes close together. Clicking picks the highest point within a few pixels, so a zoomed plot picks more precisely.</p>
 <h2>Playing the animation</h2>
@@ -442,6 +565,20 @@ ${SEE('geodofs', 'geomodes', 'geoview', 'peaks')}`),
 <li>The <b>MAC matrix</b> compares the mode shapes: 1 on the diagonal, small values elsewhere. A high value away from the diagonal (red) means two modes look alike – too few sensors to tell them apart, or one mode found twice.</li>
 <li><b>Settings…</b>: the averaged segments (fewer give a finer frequency resolution – better for light damping – but noisier curves), the MAC level, the correlation range used for the fit (default 0.9 down to 0.2) and the window correction.</li>
 <li><b>Copy</b> puts the table on the clipboard for Excel or Word; <b>Excel…</b> saves a workbook with the sheets Modes, MAC, Mode shapes (per channel, node and direction) and Info (record, settings, method) – and Setups for a test in several setups.</li></ul>
+<h2>How it is calculated</h2>
+<h3>Spectral matrix and FDD</h3>
+<p>All channels are cut into segments of ${M`L=2^p`} samples with 50 % overlap; each segment loses the channel's mean, gets a Hann window and is transformed. The cross-spectral matrix averages the ${M`J`} segments at every line ${M`f_m`}:</p>
+${EQ`G_{kl}(f_m)=\frac{1}{J}\sum_{j=1}^{J}X_k^{(j)}(f_m)\,X_l^{(j)*}(f_m)`}
+<p>(* is the complex conjugate.) The matrix is Hermitian and positive semi-definite, so its singular value decomposition is</p>
+${EQ`\mathbf{G}(f_m)=\mathbf{U}(f_m)\,\mathbf{S}(f_m)\,\mathbf{U}(f_m)^H,\qquad\mathbf{S}=\operatorname{diag}\left(s_1\ge s_2\ge\ldots\right)`}
+<p>The FDD tab plots ${M`s_1`}, ${M`s_2`} and ${M`s_3`}. At a peak of ${M`s_1`}, the first singular vector ${M`\mathbf{u}_1`} is the mode shape ${M`\boldsymbol{\varphi}`}, scaled so that its largest component is 1 and real.</p>
+<h3>Modal Assurance Criterion</h3>
+${EQ`\mathrm{MAC}\left(\boldsymbol{\varphi}_a,\boldsymbol{\varphi}_b\right)=\frac{\left|\boldsymbol{\varphi}_a^H\boldsymbol{\varphi}_b\right|^2}{\left(\boldsymbol{\varphi}_a^H\boldsymbol{\varphi}_a\right)\left(\boldsymbol{\varphi}_b^H\boldsymbol{\varphi}_b\right)}`}
+<h3>Damping by Enhanced FDD</h3>
+<p>The bell is the run of lines around the peak where ${M`\mathrm{MAC}\left(\mathbf{u}_1(f_m),\boldsymbol{\varphi}\right)`} is at least the MAC level. Transformed back to the time domain, its singular values give the mode's correlation function. It is divided by the correlation of the Hann window itself, ${M`c_w(n)`}, and scaled to 1 at lag 0:</p>
+${EQ`r(n)=\frac{1}{c_w(n)}\sum_{m\in\text{bell}}s_1(f_m)\cos\frac{2\pi mn}{L}`}
+<p>Between the two correlation levels (0.9 down to 0.2 by default), the extremes ${M`\left|r(t_e)\right|`} – each refined by a parabola – decay as ${M`e^{-\sigma t}`}. A straight line through ${M`\ln\left|r(t_e)\right|`} gives ${M`\sigma`} (R² is the quality of this fit), and the zero crossings of ${M`r`}, half a period apart, give the damped frequency ${M`f_d`}:</p>
+${EQ`\omega_d=2\pi f_d,\qquad\omega_n=\sqrt{\sigma^2+\omega_d^2},\qquad f=\frac{\omega_n}{2\pi},\qquad\zeta=\frac{\sigma}{\omega_n}`}
 ${NOTE('Damping from ambient data scatters: with a few minutes of record, expect about ±0.2–0.5 percentage points. Longer records (10–20 minutes or more, at least a few hundred periods of the lowest mode) give steadier values. The mode table is saved with the workspace.')}
 ${SEE('geoanim', 'georun', 'georoving')}`),
       T('georun', 'Running the finished model', ['run', '▶ Run', 'run model', 'edit model', 'mode buttons', 'finished model'], `
@@ -599,7 +736,24 @@ ${SEE('statinst', 'specinst', 'markers')}`),
 <tr><td>RMS of a frequency range</td><td>The level in a band you choose</td></tr>
 <tr><td>Damping factor</td><td>From the half-power bandwidth of a resonance</td></tr>
 <tr><td>Amplitude at max. frequency harmonics</td><td>The level at 2× to 10× the dominant frequency</td></tr>
-<tr><td>Sum 3D over frequency range</td><td>A band level over time from a 3D window</td></tr></table>`),
+<tr><td>Sum 3D over frequency range</td><td>A band level over time from a 3D window</td></tr></table>
+<h2>How they are calculated</h2>
+<p>The frequency instruments use the line powers ${M`\tilde{P}_k`} (${M`k\ge1`}, ${M`f_k=k\,\Delta f`}) of their spectrum window, or of a Hann-windowed FFT when they are attached to a time signal. Each line is corrected for the window's noise bandwidth, so that sums give mean squares:</p>
+${EQ`\tilde{P}_k=\frac{2\left|X_k\right|^2}{N_{\mathrm{FFT}}\sum_nw_n^2}`}
+<table class="hv-table hv-mtable"><tr><th>Instrument</th><th>Formula</th></tr>
+<tr><td>Dominant frequency</td><td>${M`\left(k^*+\delta\right)\Delta f`}, where ${M`k^*`} is the highest line and ${M`\delta=\frac{\tilde{P}_{k^*-1}-\tilde{P}_{k^*+1}}{2\left(\tilde{P}_{k^*-1}-2\tilde{P}_{k^*}+\tilde{P}_{k^*+1}\right)}`} places the top of a parabola through it and its neighbours</td></tr>
+<tr><td>Spectral centroid</td><td>${M`\frac{\sum_kf_k\tilde{P}_k}{\sum_k\tilde{P}_k}`}</td></tr>
+<tr><td>Mean frequency</td><td>${M`\frac{\sum_kf_k\sqrt{\tilde{P}_k}}{\sum_k\sqrt{\tilde{P}_k}}`} (weighted by amplitude)</td></tr>
+<tr><td>Median frequency</td><td>${M`f_m`} for the smallest ${M`m`} with ${M`\sum_{k\le m}\tilde{P}_k\ge\frac{1}{2}\sum_k\tilde{P}_k`}</td></tr>
+<tr><td>Spectral flatness</td><td>${M`\frac{\exp\left(\frac{1}{K}\sum_k\ln\tilde{P}_k\right)}{\frac{1}{K}\sum_k\tilde{P}_k}`} – the geometric over the arithmetic mean of the ${M`K`} lines</td></tr>
+<tr><td>Overall dB (weighted)</td><td>${M`10\log_{10}\sum_k\tilde{P}_k\,10^{W(f_k)/10}`}, with ${M`W=A(f)`}, ${M`C(f)`} (see ${L('fftparams')}) or 0 for dB(Z)</td></tr>
+<tr><td>RMS of a frequency range</td><td>${M`\sqrt{\sum_{f_1\le f_k\le f_2}\tilde{P}_k}`}</td></tr>
+<tr><td>Damping factor</td><td>${M`\zeta=\frac{f_2-f_1}{2f_p}`}, ${M`Q=\frac{f_p}{f_2-f_1}`}: the amplitude spectrum falls from its peak ${M`A_p`} at ${M`f_p`} to ${M`A_p/\sqrt{2}`} (−3 dB) at ${M`f_1`} and ${M`f_2`}, interpolated between lines</td></tr>
+<tr><td>Amplitude at h× max. frequency</td><td>The highest line within ±2 lines of ${M`h\cdot f_{\mathrm{dom}}`}</td></tr></table>
+<p><b>Fundamental frequency</b>, <b>THD</b>, <b>THD + Noise</b> and <b>SNR</b> fit the fundamental and its harmonics (up to 10, below ${M`f_s/2`}) to the time signal by least squares:</p>
+${EQ`x_n\approx c_0+\sum_{h=1}^{H}\left(a_h\cos\frac{2\pi hf_1n}{f_s}+b_h\sin\frac{2\pi hf_1n}{f_s}\right),\qquad P_h=\frac{a_h^2+b_h^2}{2}`}
+<p>${M`f_1`} starts at the highest FFT line and is refined within ±1 line to the frequency that fits best. ${M`P_N`}, the noise, is the mean square of what the fit leaves over:</p>
+${EQ`\mathrm{THD}=100\,\%\cdot\sqrt{\frac{\sum_{h=2}^{H}P_h}{P_1}},\qquad\text{THD+N}=100\,\%\cdot\sqrt{\frac{\sum_{h=2}^{H}P_h+P_N}{P_1}},\qquad\mathrm{SNR}=10\log_{10}\frac{P_1}{P_N}~\mathrm{dB}`}`),
       T('markers', 'Markers', ['marker', 'maximum', 'minimum', 'value at', 'harmonics marker'], `
 <ul><li>${P('Instruments', 'Maximum (with marker)')} and ${P('Instruments', 'Minimum (with marker)')} show the extreme value and mark it; the position variants show where it is, also interpolated between samples.</li>
 <li>${P('Instruments', 'Value at (with marker)…')} shows the value at a fixed X position.</li>

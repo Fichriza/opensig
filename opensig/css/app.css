@@ -390,6 +390,12 @@ li.sel > .hv-row .hv-lbl { background: var(--hv-sel); border-color: var(--hv-sel
 .hv-body { flex: 1; overflow: auto; padding: 10px 14px 18px; font: 13px/1.45 Arial, var(--sans); outline: none; }
 .hv-body p { margin: 0 0 .85em; max-width: 78ch; }
 .hv-body h2 { font: bold 14px Arial, var(--sans); margin: 1.2em 0 .4em; }
+.hv-body h3 { font: bold 13px Arial, var(--sans); margin: 1em 0 .35em; }
+.hv-body math { font-size: 1.1em; }
+.hv-eq { margin: .3em 0 .8em; padding: 2px 0 2px 1.5em; overflow-x: auto; overflow-y: hidden; }
+.hv-eq math { display: inline math; math-style: normal; } /* left-aligned like the text, still in display style */
+.hv-mtable math { math-style: normal; }
+.hv-mtable td { vertical-align: middle; }
 .hv-body ul { margin: 0 0 .9em; padding-left: 22px; max-width: 78ch; }
 .hv-body li { margin: .25em 0; }
 .hv-body a { color: var(--hv-link); text-decoration: underline; cursor: pointer; }

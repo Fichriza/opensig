@@ -349,7 +349,7 @@
   }
   function highlight(node, words) { // marks the search words in the topic text
     const src = '(' + words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', re = new RegExp(src, 'gi'), has = new RegExp(src, 'i');
-    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentNode.closest('.hv-shot, script, style') || !has.test(n.nodeValue) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentNode.closest('.hv-shot, script, style, math') || !has.test(n.nodeValue) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
     const list = []; while (walker.nextNode()) list.push(walker.currentNode);
     for (const n of list) {
       re.lastIndex = 0; const frag = document.createDocumentFragment(); let last = 0, m;

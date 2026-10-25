@@ -248,7 +248,11 @@ generator writes a `.bat` file built on these commands.
   Help viewer – Hide / Back / Forward / Home toolbar, a Contents tree of books and topics, a keyword Index, full-text
   Search with Title / Location / Rank and highlighted words, the book under each topic title and ◀ ▶ through the
   topics in order. F1 opens the topic of the active window's tool. The topics (`js/helpdata.js`) are written for
-  OpenSig; their menu and toolbar pictures are drawn from OpenSig's own menus.
+  OpenSig; their menu and toolbar pictures are drawn from OpenSig's own menus. Every spectral analysis has a "How it
+  is calculated" part with its formulas – FFT result types, the 15 windows with their correction factors, averaging,
+  padding, dB, smoothing, weighting, Siegel's test, cross-spectra, coherence, octave bands, spectrogram, CWT,
+  cepstrum, Hilbert, SRS, the spectral instruments, FDD / EFDD and MAC – written in TeX and drawn as MathML by
+  `js/texmath.js` (a small TeX subset, no library, works offline).
 - **Look:** classic style in four window styles – Standard (light blue), Classic grey (1990s 3D bevels, teal desktop),
   Classic blue (2000s rounded blue captions, beige panels) and Glass (late-2000s frosted frames) – chosen in Window ▸
   Window style or Application settings (`data-skin`, light mode only); eight app icons (`js/logos.js`: Application
