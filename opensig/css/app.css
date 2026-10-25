@@ -79,7 +79,7 @@ button { font: inherit; color: inherit; }
 .app-logo, .about-logo svg { display: inline-flex; flex: none; }
 .about-logo { display: flex; align-items: center; gap: 12px; font-size: 18px; }
 .dlg-radio.dlg-icons { flex-direction: row; flex-wrap: wrap; gap: 4px; }
-.dlg-icons label { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 69px; padding: 6px 1px 4px; border: 1px solid transparent; border-radius: 4px; font-size: 11px; text-align: center; cursor: pointer; }
+.dlg-icons label { display: flex; flex-direction: column; align-items: center; gap: 3px; width: calc(25% - 3px); padding: 6px 1px 4px; border: 1px solid transparent; border-radius: 4px; font-size: 11px; text-align: center; cursor: pointer; }
 .dlg-icons label:hover { background: var(--panel-2); }
 .dlg-icons label:has(input:checked) { border-color: var(--accent); background: var(--selection); }
 .dlg-icons input { order: 2; margin: 0; }

@@ -37,7 +37,7 @@ are using.*
 (bottom left) and Glass from the late 2000s (bottom right). The graphs look the same in every style.*
 
 ### App icons
-![The seven app icons](docs/screenshots/app-icons.png)
+![The eight app icons](docs/screenshots/app-icons.png)
 *File ▸ Application settings ▸ App icon: the logo on the welcome screen, in About and in the browser tab, and – in the
 Windows desktop app – the window and taskbar icon.*
 
@@ -64,7 +64,7 @@ Windows desktop app – the window and taskbar icon.*
   writing), raw binary, MATLAB, NumPy, EDF / BDF / GDF, HDF5, UFF / UNV; live audio input; UDP / TCP and serial input
   in the desktop app; export to CSV, WAV, PNG and Excel.
 - **A complete user manual** inside the app, and a classic Windows look in four window styles – standard, 1990s grey,
-  2000s blue and glass – with a dark mode, and a choice of seven app icons.
+  2000s blue and glass – with a dark mode, and a choice of eight app icons.
 
 The detailed feature list, file formats, automation commands and technical notes are in
 [`opensig/README.md`](opensig/README.md).

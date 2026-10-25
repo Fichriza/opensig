@@ -16,6 +16,8 @@
   const LOGOS = [
     { key: 'classic', name: 'Blue wave', svg: id => `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#286ee6"/><stop offset="1" stop-color="#0a3296"/></linearGradient></defs>
       <circle cx="32" cy="32" r="31" fill="url(#${id})"/>${stroke(wave(11.5, 52.5, 32, 16), '#fff', 4.9)}` },
+    { key: 'black', name: 'Black wave', svg: id => `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3c3c3c"/><stop offset="1" stop-color="#000"/></linearGradient></defs>
+      <circle cx="32" cy="32" r="31" fill="url(#${id})"/>${stroke(wave(11.5, 52.5, 32, 16), '#fff', 4.9)}` },
     { key: 'scope', name: 'Oscilloscope', svg: () => {
       const d = path(60, t => [9 + 46 * t, 32 - 12 * Math.sin(t * 4 * Math.PI)]);
       return `<rect x="2" y="7" width="60" height="50" rx="7" fill="#353b42"/><rect x="7" y="12" width="50" height="40" rx="3" fill="#05260f"/>
