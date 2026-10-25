@@ -482,3 +482,16 @@ test('roving test: setups combined into full mode shapes through the reference s
   assert.deepEqual(m2.unmerged, [2]); assert.ok(Math.abs(m2.refMac[1] - 1) < 1e-12);
   assert.ok(Math.abs(Math.hypot(m2.scale[1].re, m2.scale[1].im) - 0.5) < 1e-12);           // |α| = 1/2 to bring −4, −6 back to 2, 3
 });
+
+test('time FFT: zero padding refines the lines, averaging smooths over time', () => {
+  const fs = 1000, x = Float64Array.from({ length: 8000 }, (_, i) => 0.8 * Math.sin(2 * Math.PI * 123.4 * i / fs) + 0.3 * Math.sin(i * 1.7 + Math.sin(i * 0.013) * 40));
+  const a = DSP.spectrogram(x, fs, { segmentLength: 256, overlap: 50, window: 'Hann' }), b = DSP.spectrogram(x, fs, { segmentLength: 256, overlap: 50, window: 'Hann', pad: 4 });
+  assert.equal(b.bins, 4 * (a.bins - 1) + 1); assert.ok(Math.abs(b.df * 4 - a.df) < 1e-12);
+  const top = sg => { const r = sg.rows[10].v; let k = 0; for (let i = 1; i < r.length; i++) if (r[i] > r[k]) k = i; return { f: k * sg.df, db: r[k] }; };
+  assert.ok(Math.abs(top(b).f - 123.4) < Math.abs(top(a).f - 123.4) + 1e-9, 'the padded peak lies closer to the tone');
+  assert.ok(Math.abs(Math.pow(10, top(b).db / 20) - 0.8) < 0.05, 'the amplitude stays that of the tone: ' + Math.pow(10, top(b).db / 20));
+  const c = DSP.spectrogram(x, fs, { segmentLength: 256, overlap: 50, window: 'Hann', average: 5 });
+  assert.equal(c.rows.length, a.rows.length);
+  const spread = sg => { const k = Math.round(300 / sg.df), v = sg.rows.map(r => r.v[k]), m = v.reduce((s, y) => s + y, 0) / v.length; return Math.sqrt(v.reduce((s, y) => s + (y - m) ** 2, 0) / v.length); };
+  assert.ok(spread(c) < 0.6 * spread(a), `averaged rows scatter less over time: ${spread(c)} vs ${spread(a)}`);
+});

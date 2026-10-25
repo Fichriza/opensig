@@ -447,86 +447,148 @@
     return { rect: r, ax, ay };
   }
 
-  // Time FFT (mesh) view: the spectra as a shaded surface in a 3D box, on black – frequency along the front left edge,
-  // time along the front right one, the level up and in the palette's colours – drawn from the back to the front, with
-  // two grey back walls, the colour map on the left and the level axis on the right corner. The grid has at most 72 rows
-  // and 180 columns, each the maximum of the lines it stands for, so no peak is lost. Linear amplitude unless opt.db.
+  // Time FFT (mesh) view: the spectra as a smoothly shaded surface in a 3D box, on black. The surface is rasterized here
+  // with a depth buffer – its colours and light blended across every triangle from the palette colour and the light of
+  // its corners – at twice the resolution and drawn smoothed, so it has no facets or jagged edges. The box shows two grey
+  // back walls and a frame, the frequency and time scales on its two front edges (with their exact end values), the
+  // level on the right corner and the colour map beside it; walls and edges follow when the view turns. The grid has at
+  // most 140 rows and 300 columns (60 × 140 while the view is being turned), each the maximum of the lines it stands for,
+  // so no peak is lost. Linear amplitude unless opt.db.
   // opt: {sg, view: {x0, x1 (time), y0, y1 (frequency)}, zRange (dB), zFixed, db, palette, invert, enhanceLow, colorbar,
-  // xLabel, yLabel, yaw, pitch (degrees)}
+  // xLabel, yLabel, yaw, pitch (degrees), zoom, fast (while turning), hover: {i, j} (the marked point)}
+  // Returns {rect, pick(px, py) → {i, j, t, f, value} or null}.
+  const meshCache = new WeakMap(); // sg → its grid and the last surface picture, so a moving pointer only redraws the box and its marker
   function drawWaterfall(ctx, w, h, th, opt) {
     const INK = '#d4d4d4', sg = opt.sg;
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
     if (!sg || !sg.rows.length) return { rect: { x: 0, y: 0, w, h } };
-    const sf0 = sg.f0 || 0, lin = !opt.db;
+    const fast = !!opt.fast, sf0 = sg.f0 || 0, lin = !opt.db;
+    // the grid: rows × columns, each the maximum of the spectra and lines it stands for
     let rows = sg.rows.filter(rw => rw.t >= opt.view.x0 && rw.t <= opt.view.x1);
     if (rows.length < 2) rows = sg.rows;
     const k0 = Math.max(0, Math.floor((opt.view.y0 - sf0) / sg.df)), k1 = Math.max(k0 + 1, Math.min(sg.bins - 1, Math.ceil((opt.view.y1 - sf0) / sg.df)));
-    const NC = Math.min(180, k1 - k0 + 1), NR = Math.max(2, Math.min(72, rows.length));
-    const grid = [];
-    for (let j = 0; j < NR; j++) {
-      const ra = Math.floor(j * rows.length / NR), rb = Math.max(ra + 1, Math.floor((j + 1) * rows.length / NR)), g = new Float64Array(NC);
-      for (let i = 0; i < NC; i++) {
-        const ka = k0 + Math.floor(i * (k1 - k0 + 1) / NC), kb = Math.max(ka + 1, k0 + Math.floor((i + 1) * (k1 - k0 + 1) / NC));
-        let m = -Infinity; for (let rr = ra; rr < rb && rr < rows.length; rr++) { const v = rows[rr].v; for (let k = ka; k < kb; k++) if (v[k] > m) m = v[k]; }
-        g[i] = lin ? Math.pow(10, m / 20) : m;
+    const NC = Math.min(fast ? 140 : 300, k1 - k0 + 1), NR = Math.max(2, Math.min(fast ? 60 : 140, rows.length));
+    const rowAt = j => [Math.floor(j * rows.length / NR), Math.max(Math.floor(j * rows.length / NR) + 1, Math.floor((j + 1) * rows.length / NR))];
+    const colAt = i => { const a = k0 + Math.floor(i * (k1 - k0 + 1) / NC); return [a, Math.max(a + 1, k0 + Math.floor((i + 1) * (k1 - k0 + 1) / NC))]; };
+    // kept with the data (with the last picture), so a moving pointer does not pool the lines again
+    const gk = JSON.stringify([opt.view.x0, opt.view.x1, k0, k1, NC, NR, lin]);
+    let m = meshCache.get(sg);
+    if (!m || m.gk !== gk) {
+      const grid = [];
+      for (let j = 0; j < NR; j++) {
+        const [ra, rb] = rowAt(j), g = new Float64Array(NC);
+        for (let i = 0; i < NC; i++) {
+          const [ka, kb] = colAt(i);
+          let mx = -Infinity; for (let rr = ra; rr < rb && rr < rows.length; rr++) { const v = rows[rr].v; for (let k = ka; k < kb; k++) if (v[k] > mx) mx = v[k]; }
+          g[i] = lin ? Math.pow(10, mx / 20) : mx;
+        }
+        grid.push(g);
       }
-      grid.push(g);
+      m = { gk, grid, top: Math.max(...grid.map(g => Math.max(...g))) };
+      meshCache.set(sg, m);
     }
+    const grid = m.grid;
     let zlo = opt.zRange[0], zhi = opt.zRange[1];
-    if (lin) { zlo = 0; zhi = opt.zFixed ? Math.pow(10, opt.zRange[1] / 20) : Math.max(...grid.map(g => Math.max(...g))); }
+    if (lin) { zlo = 0; zhi = opt.zFixed ? Math.pow(10, opt.zRange[1] / 20) : m.top; }
     if (!(zhi > zlo)) zhi = zlo + 1;
     const fa = sf0 + k0 * sg.df, fb = sf0 + k1 * sg.df, ta = rows[0].t, tb = rows[rows.length - 1].t;
     const lvl = v => Math.max(0, Math.min(1, (v - zlo) / (zhi - zlo))), col = z => opt.enhanceLow ? Math.sqrt(z) : z;
-    // orthographic view from the front corner (high frequency, first time): u = frequency, v = time, z = level, all 0…1
-    const yaw = (opt.yaw ?? 41) * Math.PI / 180, pitch = (opt.pitch ?? 22) * Math.PI / 180, HZ = 0.55;
+    const L = lut(opt.palette, opt.invert), rgb = (z, s) => { const c = Math.round(col(z) * 255) * 3; return `rgb(${L[c] * s | 0},${L[c + 1] * s | 0},${L[c + 2] * s | 0})`; };
+    // the view: orthographic, turned by the yaw about the vertical and tilted by the pitch; u = frequency, v = time and
+    // z = level, all 0…1. The scale fits the box at any yaw, so turning it does not resize it.
+    const yaw = (opt.yaw ?? 41) * Math.PI / 180, pitch = Math.max(2, Math.min(88, opt.pitch ?? 22)) * Math.PI / 180, HZ = 0.55;
     const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
-    const depth = (u, v) => -(u - 0.5) * sy + (v - 0.5) * cy; // larger = farther
-    const P0 = (u, v, z) => [(u - 0.5) * cy + (v - 0.5) * sy, -z * HZ * cp - depth(u, v) * sp];
-    let mnx = Infinity, mxx = -Infinity, mny = Infinity, mxy = -Infinity;
-    for (const u of [0, 1]) for (const v of [0, 1]) for (const z of [0, 1]) { const p = P0(u, v, z); mnx = Math.min(mnx, p[0]); mxx = Math.max(mxx, p[0]); mny = Math.min(mny, p[1]); mxy = Math.max(mxy, p[1]); }
+    const depth = (u, v) => -(u - 0.5) * sy + (v - 0.5) * cy; // along the floor, larger = farther
+    const P0 = (u, v, z) => [(u - 0.5) * cy + (v - 0.5) * sy, -(z - 0.5) * HZ * cp - depth(u, v) * sp];
     const x0 = (opt.colorbar ? 60 : 10) + 34, x1 = w - 64, y0 = 14, y1 = h - 50;
-    const k = Math.max(1, Math.min((x1 - x0) / (mxx - mnx), (y1 - y0) / (mxy - mny)));
-    const ox = (x0 + x1) / 2 - k * (mnx + mxx) / 2, oy = (y0 + y1) / 2 - k * (mny + mxy) / 2;
-    const P = (u, v, z) => { const p = P0(u, v, z); return [ox + k * p[0], oy + k * p[1]]; };
-    const path = pts => { ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); };
+    const k = Math.max(1, Math.min((x1 - x0) / Math.SQRT2, (y1 - y0) / (Math.SQRT2 * sp + HZ * cp))) * (opt.zoom || 1);
+    const ox = (x0 + x1) / 2, oy = (y0 + y1) / 2;
+    const P = (u, v, z) => { const q = P0(u, v, z); return [ox + k * q[0], oy + k * q[1]]; };
+    const path = pts => { ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.closePath(); };
     const line = (a, b) => { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); };
-    // the back walls and the frame behind the surface
-    path([P(0, 0, 0), P(0, 1, 0), P(0, 1, 1), P(0, 0, 1)]); ctx.fillStyle = '#141414'; ctx.fill();
-    path([P(0, 1, 0), P(1, 1, 0), P(1, 1, 1), P(0, 1, 1)]); ctx.fillStyle = '#353535'; ctx.fill();
+    // the corners: the farthest one carries the back walls, the nearest one joins the two labelled front edges
+    const C4 = [[0, 0], [1, 0], [1, 1], [0, 1]], dep = C4.map(([u, v]) => depth(u, v));
+    const [uf, vf] = C4[dep.indexOf(Math.max(...dep))], [un, vn] = C4[dep.indexOf(Math.min(...dep))];
+    const wallU = [P(uf, 0, 0), P(uf, 1, 0), P(uf, 1, 1), P(uf, 0, 1)], wallV = [P(0, vf, 0), P(1, vf, 0), P(1, vf, 1), P(0, vf, 1)];
+    const cx = pts => pts.reduce((t, q) => t + q[0], 0) / 4, leftU = cx(wallU) < cx(wallV);
+    path(wallU); ctx.fillStyle = leftU ? '#141414' : '#353535'; ctx.fill();
+    path(wallV); ctx.fillStyle = leftU ? '#353535' : '#141414'; ctx.fill();
     ctx.strokeStyle = INK; ctx.lineWidth = 1;
-    for (const [u, v] of [[0, 0], [0, 1], [1, 1]]) line(P(u, v, 0), P(u, v, 1));
-    line(P(0, 0, 1), P(0, 1, 1)); line(P(0, 1, 1), P(1, 1, 1)); line(P(0, 0, 0), P(0, 1, 0)); line(P(0, 1, 0), P(1, 1, 0));
-    // the surface: cells from the farthest to the nearest, coloured by their level and lit from above and the front left
-    const L = lut(opt.palette, opt.invert), du = 1 / (NC - 1 || 1), dv = 1 / (NR - 1);
-    const lx = 0.5 * sy - 0.35 * cy, ly = -0.5 * cy - 0.35 * sy, lz = 0.8, ln = Math.hypot(lx, ly, lz);
-    const Z = grid.map(g => Array.from(g, lvl)), cells = [];
-    for (let j = 0; j < NR - 1; j++) for (let i = 0; i < Math.max(1, NC - 1); i++) cells.push([i, j, depth((i + 0.5) * du, (j + 0.5) * dv)]);
-    cells.sort((a, b) => b[2] - a[2]);
-    const rgb = (z, s) => { const c = Math.round(col(z) * 255) * 3; return `rgb(${L[c] * s | 0},${L[c + 1] * s | 0},${L[c + 2] * s | 0})`; };
-    ctx.lineWidth = 0.6; ctx.lineJoin = 'round';
-    for (const [i, j] of cells) {
-      const i1 = Math.min(i + 1, NC - 1), a = Z[j][i], b = Z[j][i1], c = Z[j + 1][i1], d = Z[j + 1][i];
-      const gu = (b + c - a - d) / 2 * HZ / du, gv = (d + c - a - b) / 2 * HZ / dv, n = Math.hypot(gu, gv, 1);
-      const s = 0.4 + 0.6 * Math.max(0, (-gu * lx - gv * ly + lz) / (n * ln));
-      const fill = rgb(((a + b + c + d) / 4 + Math.max(a, b, c, d)) / 2, s); // between its mean and its top: narrow peaks keep their colour
-      path([P(i * du, j * dv, a), P(i1 * du, j * dv, b), P(i1 * du, (j + 1) * dv, c), P(i * du, (j + 1) * dv, d)]);
-      ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = fill; ctx.stroke();
+    for (const [u, v] of [[uf, vf], [uf, vn], [un, vf]]) line(P(u, v, 0), P(u, v, 1));
+    line(P(uf, 0, 1), P(uf, 1, 1)); line(P(0, vf, 1), P(1, vf, 1)); line(P(uf, 0, 0), P(uf, 1, 0)); line(P(0, vf, 0), P(1, vf, 0));
+    // the surface picture (cached)
+    const tf = ctx.getTransform ? ctx.getTransform().a : 1;
+    let S = tf * (fast || tf >= 2 ? 1 : 2); if (w * h * S * S > 4e6) S = Math.sqrt(4e6 / (w * h));
+    const Wp = Math.ceil(w * S), Hp = Math.ceil(h * S);
+    const key = JSON.stringify([w, h, S, opt.view, opt.zRange, opt.zFixed, opt.db, opt.palette, opt.invert, opt.enhanceLow, opt.colorbar, opt.yaw, opt.pitch, opt.zoom, fast]);
+    if (m.key !== key) {
+      // the vertices: position in the picture, depth along the view, colour lit by the light from the front left above
+      const NV = NR * NC, SKV = 2 * (NC + NR), N = NV + SKV;
+      const X = new Float32Array(N), Y = new Float32Array(N), D = new Float32Array(N), R = new Float32Array(N), G = new Float32Array(N), B = new Float32Array(N), PK = new Int32Array(N);
+      const du = 1 / (NC - 1), dv = 1 / (NR - 1), Z = grid.map(g => Array.from(g, lvl));
+      const tx = sy, ty = -cy, lx = 0.5 * tx - 0.35 * cy, ly = 0.5 * ty - 0.35 * sy, lz = 0.8, ln = Math.hypot(lx, ly, lz);
+      const put = (q, u, v, z, c, s, pick) => {
+        const p2 = P(u, v, z); X[q] = p2[0] * S; Y[q] = p2[1] * S; D[q] = depth(u, v) * cp - (z - 0.5) * HZ * sp; PK[q] = pick;
+        const ci = Math.round(col(c) * 255) * 3; R[q] = L[ci] * s; G[q] = L[ci + 1] * s; B[q] = L[ci + 2] * s;
+      };
+      for (let j = 0; j < NR; j++) for (let i = 0; i < NC; i++) {
+        const z = Z[j][i], gu = (Z[j][Math.min(NC - 1, i + 1)] - Z[j][Math.max(0, i - 1)]) / ((Math.min(NC - 1, i + 1) - Math.max(0, i - 1)) * du) * HZ;
+        const gv = (Z[Math.min(NR - 1, j + 1)][i] - Z[Math.max(0, j - 1)][i]) / ((Math.min(NR - 1, j + 1) - Math.max(0, j - 1)) * dv) * HZ;
+        put(j * NC + i, i * du, j * dv, z, z, 0.4 + 0.6 * Math.max(0, (-gu * lx - gv * ly + lz) / (Math.hypot(gu, gv, 1) * ln)), j * NC + i);
+      }
+      // the near sides down to the floor: the spectrum at the near time edge and the line at the near frequency edge
+      const jn = vn ? NR - 1 : 0, iN = un ? NC - 1 : 0;
+      for (let i = 0; i < NC; i++) { const z = Z[jn][i]; put(NV + 2 * i, i * du, vn, z, z, 0.42, jn * NC + i); put(NV + 2 * i + 1, i * du, vn, 0, z, 0.1, jn * NC + i); }
+      for (let j = 0; j < NR; j++) { const z = Z[j][iN], q = NV + 2 * NC + 2 * j; put(q, un, j * dv, z, z, 0.3, j * NC + iN); put(q + 1, un, j * dv, 0, z, 0.08, j * NC + iN); }
+      // rasterize: every triangle with a depth test; colour, light and depth blended by the barycentric weights
+      const img = new ImageData(Wp, Hp), px = img.data, zb = new Float32Array(Wp * Hp).fill(Infinity), id = new Int32Array(Wp * Hp).fill(-1);
+      const tri = (a, b, c) => {
+        const xa = X[a], ya = Y[a], xb = X[b], yb = Y[b], xc = X[c], yc = Y[c], area = (xb - xa) * (yc - ya) - (xc - xa) * (yb - ya);
+        if (!(Math.abs(area) > 1e-9)) return;
+        const mx0 = Math.max(0, Math.floor(Math.min(xa, xb, xc))), mx1 = Math.min(Wp - 1, Math.ceil(Math.max(xa, xb, xc)));
+        const my0 = Math.max(0, Math.floor(Math.min(ya, yb, yc))), my1 = Math.min(Hp - 1, Math.ceil(Math.max(ya, yb, yc)));
+        for (let yy = my0; yy <= my1; yy++) {
+          const Yc = yy + 0.5;
+          for (let xx = mx0; xx <= mx1; xx++) {
+            const Xc = xx + 0.5, wa = ((xb - Xc) * (yc - Yc) - (xc - Xc) * (yb - Yc)) / area, wb = ((xc - Xc) * (ya - Yc) - (xa - Xc) * (yc - Yc)) / area, wc = 1 - wa - wb;
+            if (wa < -1e-5 || wb < -1e-5 || wc < -1e-5) continue;
+            const o = yy * Wp + xx, d = wa * D[a] + wb * D[b] + wc * D[c];
+            if (d >= zb[o]) continue;
+            zb[o] = d; const o4 = o * 4;
+            px[o4] = wa * R[a] + wb * R[b] + wc * R[c]; px[o4 + 1] = wa * G[a] + wb * G[b] + wc * G[c]; px[o4 + 2] = wa * B[a] + wb * B[b] + wc * B[c]; px[o4 + 3] = 255;
+            id[o] = PK[wa >= wb && wa >= wc ? a : wb >= wc ? b : c];
+          }
+        }
+      };
+      for (let j = 0; j < NR - 1; j++) for (let i = 0; i < NC - 1; i++) { const q = j * NC + i; tri(q, q + 1, q + NC + 1); tri(q, q + NC + 1, q + NC); }
+      for (let i = 0; i < NC - 1; i++) { const q = NV + 2 * i; tri(q, q + 2, q + 3); tri(q, q + 3, q + 1); }
+      for (let j = 0; j < NR - 1; j++) { const q = NV + 2 * NC + 2 * j; tri(q, q + 2, q + 3); tri(q, q + 3, q + 1); }
+      const cv = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(Wp, Hp) : Object.assign(document.createElement('canvas'), { width: Wp, height: Hp });
+      cv.getContext('2d').putImageData(img, 0, 0);
+      Object.assign(m, { key, cv, id, Z });
     }
-    // the near sides down to the floor: the first spectrum (front) and the highest frequency (right)
-    for (let i = 0; i < NC - 1; i++) { path([P(i * du, 0, Z[0][i]), P((i + 1) * du, 0, Z[0][i + 1]), P((i + 1) * du, 0, 0), P(i * du, 0, 0)]); const f = rgb((Z[0][i] + Z[0][i + 1]) / 2, 0.42); ctx.fillStyle = f; ctx.fill(); ctx.strokeStyle = f; ctx.stroke(); }
-    for (let j = 0; j < NR - 1; j++) { const a = Z[j][NC - 1], b = Z[j + 1][NC - 1]; path([P(1, j * dv, a), P(1, (j + 1) * dv, b), P(1, (j + 1) * dv, 0), P(1, j * dv, 0)]); const f = rgb((a + b) / 2, 0.3); ctx.fillStyle = f; ctx.fill(); ctx.strokeStyle = f; ctx.stroke(); }
-    // the front edges with their scales, and the level axis on the right corner
+    ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(m.cv, 0, 0, w, h); ctx.restore();
+    // the value under the pointer: the nearest grid point the picture shows there
+    const pick = (qx, qy) => {
+      const xx = Math.floor(qx * S), yy = Math.floor(qy * S);
+      if (xx < 0 || yy < 0 || xx >= Wp || yy >= Hp) return null;
+      const q = m.id[yy * Wp + xx]; if (q < 0) return null;
+      const i = q % NC, j = (q - i) / NC, [ra, rb] = rowAt(j), [ka, kb] = colAt(i);
+      return { i, j, t: rows[Math.min(rows.length - 1, (ra + rb - 1) >> 1)].t, f: sf0 + (ka + kb - 1) / 2 * sg.df, value: grid[j][i], db: !lin };
+    };
+    // the front edges with their scales, and the level axis on the right side corner
     ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.fillStyle = INK; ctx.font = th.font;
     const C = P(0.5, 0.5, 0);
-    const edge = (A, B, lo, hi, title) => {
-      line(A, B);
-      const ex = B[0] - A[0], ey = B[1] - A[1], len = Math.hypot(ex, ey), mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2;
+    const edge = (A, Bp, lo, hi, title) => {
+      line(A, Bp);
+      const ex = Bp[0] - A[0], ey = Bp[1] - A[1], len = Math.hypot(ex, ey), mx = (A[0] + Bp[0]) / 2, my = (A[1] + Bp[1]) / 2;
+      if (len < 1) return;
       let nx = -ey / len, ny = ex / len; if (nx * (mx - C[0]) + ny * (my - C[1]) < 0) { nx = -nx; ny = -ny; }
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       // a tick and its value; the ends' values are moved along the edge, off the corner the next edge shares
       const mark = (t, text, along = 0) => {
-        const q = (t - lo) / (hi - lo), px = A[0] + q * ex, py = A[1] + q * ey, sh = along * (ctx.measureText(text).width / 2 + 3) / len;
-        line([px, py], [px + nx * 5, py + ny * 5]); ctx.fillText(text, px + nx * 15 + sh * ex, py + ny * 13 + sh * ey);
+        const q = (t - lo) / (hi - lo), qx = A[0] + q * ex, qy = A[1] + q * ey, sh = along * (ctx.measureText(text).width / 2 + 3) / len;
+        line([qx, qy], [qx + nx * 5, qy + ny * 5]); ctx.fillText(text, qx + nx * 15 + sh * ex, qy + ny * 13 + sh * ey);
       };
       if (hi > lo) { // the two ends with their exact values, and round values between that keep clear of them
         mark(lo, String(+lo.toPrecision(5)), 1); mark(hi, String(+hi.toPrecision(5)), -1);
@@ -534,24 +596,37 @@
       }
       if (title) ctx.fillText(title, mx + nx * 34, my + ny * 30);
     };
-    edge(P(0, 0, 0), P(1, 0, 0), fa, fb, opt.yLabel || 'Hz');
-    edge(P(1, 0, 0), P(1, 1, 0), ta, tb, opt.xLabel || 's');
-    const zA = P(1, 1, 0), zB = P(1, 1, 1);
-    line(zA, zB); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    edge(P(0, vn, 0), P(1, vn, 0), fa, fb, opt.yLabel || 'Hz');
+    edge(P(un, 0, 0), P(un, 1, 0), ta, tb, opt.xLabel || 's');
+    const sides = [[uf, vn], [un, vf]].map(([u, v]) => [P(u, v, 0), P(u, v, 1)]), [zA, zB] = sides[0][0][0] > sides[1][0][0] ? sides[0] : sides[1];
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     for (const t of niceTicks(zlo, zhi, Math.max(2, Math.floor((zA[1] - zB[1]) / 36)))) {
-      const y = zA[1] + (t - zlo) / (zhi - zlo) * (zB[1] - zA[1]);
-      line([zA[0], y], [zA[0] + 5, y]); ctx.fillText(fmt(t, zhi - zlo), zA[0] + 8, y);
+      const q = (t - zlo) / (zhi - zlo), qx = zA[0] + q * (zB[0] - zA[0]), qy = zA[1] + q * (zB[1] - zA[1]);
+      line([qx, qy], [qx + 5, qy]); ctx.fillText(fmt(t, zhi - zlo), qx + 8, qy);
     }
     if (!lin) { ctx.textBaseline = 'bottom'; ctx.fillText('dB', zB[0] + 8, zB[1] - 6); }
-    // the colour map
+    // the marked point: a line down to the floor and its values
+    if (opt.hover && opt.hover.i < NC && opt.hover.j < NR) {
+      const { i, j } = opt.hover, u = i / (NC - 1), v = j / (NR - 1), top = P(u, v, m.Z[j][i]), foot = P(u, v, 0);
+      ctx.strokeStyle = '#fff'; ctx.setLineDash([3, 3]); line(foot, top); ctx.setLineDash([]);
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(top[0], top[1], 3.5, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(foot[0], foot[1], 2, 0, 7); ctx.fill();
+      if (opt.hover.label) {
+        const lines = opt.hover.label.split('\n'), tw = Math.max(...lines.map(t => ctx.measureText(t).width)) + 10, bh = lines.length * 14 + 6;
+        const bx = Math.min(w - tw - 4, top[0] + 10), by = Math.max(4, top[1] - bh - 8);
+        ctx.fillStyle = 'rgba(20,20,20,0.85)'; ctx.fillRect(bx, by, tw, bh); ctx.strokeStyle = '#777'; ctx.strokeRect(bx + 0.5, by + 0.5, tw - 1, bh - 1);
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; lines.forEach((t, n) => ctx.fillText(t, bx + 5, by + 4 + n * 14));
+      }
+    }
+    // the colour map, beside the box in a wide window
     if (opt.colorbar) {
-      const bx = Math.max(12, ox + k * mnx - 110), bw = 10, by0 = y0 + 4, by1 = h - 22; // next to the box in a wide window
-      for (let y = by0; y < by1; y++) { ctx.fillStyle = rgb(1 - (y - by0) / (by1 - by0), 1); ctx.fillRect(bx, y, bw, 1); }
+      const bx = Math.max(12, ox - k * Math.SQRT2 / 2 - 110), bw = 10, by0 = y0 + 4, by1 = h - 22;
+      for (let yy = by0; yy < by1; yy++) { ctx.fillStyle = rgb(1 - (yy - by0) / (by1 - by0), 1); ctx.fillRect(bx, yy, bw, 1); }
       ctx.strokeStyle = '#777'; ctx.strokeRect(bx + 0.5, by0 + 0.5, bw - 1, by1 - by0 - 1);
       ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
       for (const t of niceTicks(zlo, zhi, Math.max(2, Math.floor((by1 - by0) / 40)))) ctx.fillText(fmt(t, zhi - zlo), bx + bw + 5, by1 - (t - zlo) / (zhi - zlo) * (by1 - by0));
     }
-    return { rect: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } };
+    return { rect: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, pick, mesh: true };
   }
 
   /* ---------- Analog gauge for instruments ---------- */

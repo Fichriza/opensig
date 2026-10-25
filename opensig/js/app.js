@@ -584,10 +584,11 @@
   function render3D(w, th, cw, ch) {
     const d = w.data, z = w.display.zFixed || d.zAuto;
     const opt = { sg: d.sg, view: w.view, zRange: z, zFixed: !!w.display.zFixed, db: !!w.display.meshDb, palette: w.display.palette, invert: w.display.invert,
+      yaw: w.display.meshYaw, pitch: w.display.meshPitch, zoom: w.display.meshZoom, fast: !!w.meshDragging, hover: w.meshHover,
       colorbar: w.display.colorbar, freqDown: S.settings.freqDown, enhanceLow: w.display.enhanceLow,
       cursor: w.display.crosshair && w.fixedCursor3 ? w.fixedCursor3 : null, xLabel: w.display.xLabel ?? (d.xUnit || 's'), yLabel: w.display.yLabel ?? 'Hz' };
     w.lay = w.display.mode === 'mesh' ? PLOT.drawWaterfall(w.ctx, cw, ch, th, opt) : PLOT.drawSpectrogram(w.ctx, cw, ch, th, opt);
-    w.stInfo.textContent = w.error ? '⚠ ' + w.error : `${d.sg.rows.length} segments × ${d.sg.bins} bins · ${d.sg.segLen} pts · Δf ${fmtV(d.sg.df)} Hz · Δt ${fmtV(d.sg.dt)} s · ${w.display.mode === 'mesh' ? 'mesh (F3 for spectrogram)' : 'spectrogram (F2 for mesh)'}`;
+    w.stInfo.textContent = w.error ? '⚠ ' + w.error : `${d.sg.rows.length} segments × ${d.sg.bins} bins · ${d.sg.segLen} pts · Δf ${fmtV(d.sg.df)} Hz · Δt ${fmtV(d.sg.dt)} s · ${w.display.mode === 'mesh' ? 'mesh: drag to turn, wheel to zoom, double-click to reset (F3 for spectrogram)' : 'spectrogram (F2 for mesh)'}`;
   }
 
   function renderInstrument(w, th) {
@@ -698,6 +699,13 @@
         const up = () => { w.canvas.removeEventListener('pointermove', mv); w.canvas.removeEventListener('pointerup', up); };
         w.canvas.addEventListener('pointermove', mv); w.canvas.addEventListener('pointerup', up); return;
       }
+      if (w.kind === '3d' && w.display.mode === 'mesh' && e.button === 0) { // the mesh view: dragging turns and tilts it
+        const sx = e.clientX, sy = e.clientY, yaw = w.display.meshYaw ?? 41, pitch = w.display.meshPitch ?? 22;
+        w.canvas.setPointerCapture(e.pointerId); w.meshDragging = true; w.meshHover = null;
+        const mv = ev => { w.display.meshYaw = yaw - (ev.clientX - sx) * 0.4; w.display.meshPitch = Math.max(2, Math.min(88, pitch + (ev.clientY - sy) * 0.3)); requestRender(w); };
+        const up = () => { w.meshDragging = false; w.canvas.removeEventListener('pointermove', mv); w.canvas.removeEventListener('pointerup', up); requestRender(w); };
+        w.canvas.addEventListener('pointermove', mv); w.canvas.addEventListener('pointerup', up); return;
+      }
       if (!w.lay || !w.lay.ax || w.kind === 'instrument') return;
       const p = pt(e); if (!inRect(p, w.lay.rect)) return;
       w.canvas.setPointerCapture(e.pointerId);
@@ -707,6 +715,7 @@
       if (e.button === 2) e.preventDefault();
     });
     w.canvas.addEventListener('pointermove', e => {
+      if (w.kind === '3d' && w.display.mode === 'mesh') { if (!w.meshDragging) meshHover(w, pt(e)); return; }
       if (!w.lay || !w.lay.ax) return;
       const p = pt(e), x = w.lay.ax.fromPx(p.px), y = w.lay.ay.fromPx(p.py);
       if (pickDrag) { root.PICK.move(w, p); return; }
@@ -742,9 +751,15 @@
       } else { w.selection = null; requestRender(w); }
       drag = null;
     });
-    w.canvas.addEventListener('pointerleave', () => { if (!drag) updateCursor(w, null, null, false); });
-    w.canvas.addEventListener('dblclick', () => resetView(w));
+    w.canvas.addEventListener('pointerleave', () => { if (w.kind === '3d' && w.display.mode === 'mesh') meshHover(w, null); else if (!drag) updateCursor(w, null, null, false); });
+    w.canvas.addEventListener('dblclick', () => {
+      if (w.kind === '3d' && w.display.mode === 'mesh') { w.display.meshYaw = w.display.meshPitch = w.display.meshZoom = null; requestRender(w); return; } // the first view again
+      resetView(w);
+    });
     w.canvas.addEventListener('wheel', e => {
+      if (w.kind === '3d' && w.display.mode === 'mesh') { // the mesh view: the wheel zooms
+        e.preventDefault(); w.display.meshZoom = Math.max(0.5, Math.min(4, (w.display.meshZoom || 1) * (e.deltaY > 0 ? 1 / 1.12 : 1.12))); requestRender(w); return;
+      }
       if (!w.lay || !w.lay.ax || w.kind === 'instrument') return;
       e.preventDefault();
       if (S.spaceDown && w.display.cursorMode === 'sideband' && w.display.sideband > 0) { // SPACE + wheel: sideband offset in 1 % steps
@@ -758,6 +773,15 @@
       }
       zoom(w, f, w.lay.ax.fromPx(p.px));
     }, { passive: false });
+  }
+
+  // the mesh view's point under the pointer: marked in the view, with its time, frequency and level in the status bar
+  function meshHover(w, p) {
+    const hit = p && w.lay && w.lay.pick ? w.lay.pick(p.px, p.py) : null, old = w.meshHover;
+    if (!hit) { if (old) { w.meshHover = null; requestRender(w); } w.stCursor.textContent = ''; return; }
+    const parts = [`t ${fmtV(hit.t)} ${w.data.xUnit || 's'}`, `f ${fmtV(hit.f)} Hz`, hit.db ? `${fmtV(hit.value)} dB` : `amplitude ${fmtV(hit.value)}`], label = parts.join('\n');
+    w.stCursor.textContent = parts.join(' · ');
+    if (!old || old.i !== hit.i || old.j !== hit.j) { w.meshHover = { i: hit.i, j: hit.j, label }; requestRender(w); }
   }
 
   function drawRubber(w, drag, p) {

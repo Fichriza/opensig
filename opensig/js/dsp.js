@@ -282,13 +282,14 @@
     return { y, df, linPow: acc.pow, linAmp: acc.amp, bandPow, nfft: acc.nfft, segLen: segs[0].length, segments: segs.length };
   }
 
-  // Short-time FFT matrix (dB magnitude). Returns {rows: Float32Array[], df, dt, bins}.
+  // Short-time FFT matrix (dB magnitude). opt: {segmentLength, overlap (%), window, pad (zero padding: 1, 2, 4 or 8 times the
+  // next power of 2), average (a moving power average over this many segments), maxRows}. Returns {rows: [{t, v}], df, dt, bins}.
   function spectrogram(x, fs, opt) {
     const len = Math.max(8, opt.segmentLength || 256), ov = Math.min(0.95, (opt.overlap ?? 50) / 100);
     const hop = Math.max(1, Math.round(len * (1 - ov)));
     const w = makeWindow(opt.window || 'Hann', len);
     let sw = 0; for (let i = 0; i < len; i++) sw += w[i];
-    const nfft = nextPow2(len), bins = nfft / 2 + 1, rows = [];
+    const nfft = nextPow2(len) * ([2, 4, 8].includes(+opt.pad) ? +opt.pad : 1), bins = nfft / 2 + 1, rows = [];
     const re = new Float64Array(nfft), im = new Float64Array(nfft);
     const maxRows = opt.maxRows || 2000;
     let starts = [];
@@ -305,6 +306,14 @@
         row[k] = 20 * Math.log10(Math.max(a, 1e-12));
       }
       rows.push({ t: (s + len / 2) / fs, v: row });
+    }
+    const nav = Math.max(1, Math.round(opt.average || 1));
+    if (nav > 1 && rows.length > 1) { // the mean power of the segments around each one: a smoother picture, less time detail
+      const pw = rows.map(r => Float64Array.from(r.v, v => Math.pow(10, v / 10))), h0 = Math.floor((nav - 1) / 2);
+      rows.forEach((r, j) => {
+        const a = Math.max(0, j - h0), b = Math.min(rows.length, j - h0 + nav);
+        for (let k = 0; k < bins; k++) { let s = 0; for (let q = a; q < b; q++) s += pw[q][k]; r.v[k] = 10 * Math.log10(Math.max(s / (b - a), 1e-24)); }
+      });
     }
     return { rows, df: fs / nfft, bins, segLen: len, hop, dt: hop / fs };
   }

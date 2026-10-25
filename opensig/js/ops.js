@@ -36,7 +36,7 @@
       }
     },
     spectrogram: {
-      label: p => (p.mesh ? 'Time FFT' : 'Spectrogram') + ` (${p.segmentLength} pts, ${p.overlap}% overlap)`,
+      label: p => (p.mesh ? 'Time FFT' : 'Spectrogram') + ` (${p.segmentLength} pts, ${p.overlap}% overlap${p.pad > 1 ? `, ${p.pad}× padded` : ''}${p.average > 1 ? `, ${p.average} averaged` : ''})`,
       kind: '3d', input: 'visible',
       compute(win, [d], p) {
         needUniform(d);
@@ -45,7 +45,8 @@
         for (const r of sg.rows) r.t += d.x0;
         let lo = Infinity, hi = -Infinity;
         for (const r of sg.rows) for (const v of r.v) { if (v > hi) hi = v; if (v < lo) lo = v; }
-        return { sg, fMax: fs / 2, t0: d.x0, t1: d.x0 + d.y.length * d.dx, zAuto: [Math.max(lo, hi - 100), hi], xUnit: d.xUnit || 's', yUnit: 'Hz' };
+        const fMax = p.fMax > 0 ? Math.min(p.fMax, fs / 2) : fs / 2, fMin = p.fMin > 0 && p.fMin < fMax ? p.fMin : 0; // the band shown
+        return { sg, fMin, fMax, t0: d.x0, t1: d.x0 + d.y.length * d.dx, zAuto: [Math.max(lo, hi - 100), hi], xUnit: d.xUnit || 's', yUnit: 'Hz' };
       }
     },
     slice: {

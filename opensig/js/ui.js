@@ -341,19 +341,28 @@
   }
 
   async function spectrogramDialog(mesh, quick) {
-    const w = need('uniform'), d = S.settings.spectrogram, n = APP.visibleData(w).y.length;
-    const params = Object.assign({}, d, { mesh });
+    const w = need('uniform'), d = S.settings.spectrogram, n = APP.visibleData(w).y.length, nyq = 0.5 / w.data.dx;
+    const params = Object.assign({ pad: 1, average: 1 }, d, { mesh });
+    let level = d.level || 'linear';
     if (!quick) {
       const v = await dialog({ title: mesh ? 'Time FFT' : 'Spectrogram', intro: `Visible part: ${n} samples. Shorter segments give better time resolution, longer segments better frequency resolution.`, fields: [
         { key: 'segmentLength', label: 'FFT segment length (samples)', type: 'select', options: [64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384], value: d.segmentLength },
         { key: 'overlap', label: 'Overlap between segments (%)', type: 'number', value: d.overlap, min: 0, max: 95 },
         { key: 'window', label: 'Window', type: 'select', options: DSP.WINDOWS, value: d.window },
-        { key: 'remember', label: 'Use these settings as default', type: 'check', value: true }], ok: 'Calculate' });
+        { key: 'pad', label: 'Zero padding', type: 'select', options: [[1, 'None'], [2, '2 × – finer frequency lines'], [4, '4 ×'], [8, '8 ×']], value: params.pad || 1 },
+        { key: 'average', label: 'Average consecutive spectra', type: 'number', value: params.average || 1, min: 1, max: 64, step: 1, hint: '1 = none; more give a smoother picture with less time detail' },
+        { key: 'fMin', label: 'Frequencies from (Hz)', type: 'number', value: 0, min: 0 },
+        { key: 'fMax', label: 'Frequencies to (Hz)', type: 'number', value: 0, min: 0, hint: `0 = up to ${PLOT.fmt(nyq, nyq)} Hz (half the sample rate)` },
+        ...(mesh ? [{ key: 'level', label: 'Level', type: 'select', options: [['linear', 'Linear amplitude'], ['dB', 'dB']], value: level }] : []),
+        { key: 'remember', label: 'Use these settings as default', type: 'check', value: true }], ok: 'Calculate',
+        validate: x => x.fMax > 0 && x.fMin >= x.fMax ? 'The highest frequency must be above the lowest' : !(x.average >= 1) ? 'Average: 1 or more spectra' : null });
       if (!v) return;
-      Object.assign(params, { segmentLength: +v.segmentLength, overlap: v.overlap, window: v.window });
-      if (v.remember) { S.settings.spectrogram = { segmentLength: params.segmentLength, overlap: params.overlap, window: params.window }; APP.saveSettings(); }
+      Object.assign(params, { segmentLength: +v.segmentLength, overlap: v.overlap, window: v.window, pad: +v.pad, average: Math.max(1, Math.round(v.average)), fMin: v.fMin || 0, fMax: v.fMax || 0 });
+      if (mesh) level = v.level;
+      if (v.remember) { S.settings.spectrogram = { segmentLength: params.segmentLength, overlap: params.overlap, window: params.window, pad: params.pad, average: params.average, level }; APP.saveSettings(); }
     }
-    APP.derive(w, 'spectrogram', params, { display: mesh ? { mode: 'mesh', palette: 'Hot' } : { mode: 'spectrogram' } });
+    delete params.level;
+    APP.derive(w, 'spectrogram', params, { display: mesh ? { mode: 'mesh', palette: 'Hot', meshDb: level === 'dB' } : { mode: 'spectrogram' } });
   }
 
   const FILTER_TYPES = [['lowpass', 'Lowpass'], ['highpass', 'Highpass'], ['bandpass', 'Bandpass'], ['bandstop', 'Bandstop']];
