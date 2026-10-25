@@ -4,6 +4,13 @@ const assert = require('node:assert/strict');
 const DSP = require('../js/dsp.js');
 const CM = require('../js/cablemath.js');
 
+// the app's chain: a PSD window in dB, its peak detection (prominence 8 dB, positions between lines), the modes numbered
+function modesOf(y, fs, o, nseg = 16) {
+  const sp = DSP.svSpectrum(y, fs, { mode: 'segments', segmentCount: nseg, segmentOverlap: 50, window: 'Hann', type: 'Power spectral density (PSD)', zeroPadding: '2 x Next power of 2', dB: true });
+  const s = Object.assign(DSP.defaultPeakSettingsAll(sp.y), { on: true, method: 'prominence', prom: 8, distance: 1, refine: 'parabolic' });
+  const peaks = DSP.detectPeaks(sp.y, s).idx.map(i => ({ f: sp.x0 + DSP.refinePeak(sp.y, i, 'parabolic').pos * sp.dx }));
+  return CM.assignModes(peaks, { db: sp.y, f0: sp.x0, df: sp.dx }, o);
+}
 const near = (a, b, rel, msg) => assert.ok(Math.abs(a - b) <= rel * Math.abs(b), `${msg || ''} expected ${b} ± ${rel * 100} %, got ${a}`);
 // a stay cable: 80 m, 60 kg/m, 37 strands of 150 mm² (E = 195 GPa), EI of the separate strands
 const stay = { L: 80, m: 60, EI: 195e9 * 37 * Math.PI * 0.0157 ** 4 / 64, EA: 195e9 * 37 * 150e-6, theta: 30 * Math.PI / 180 };
@@ -55,13 +62,14 @@ test('Zui et al.: close to the exact clamped beam where sag is small', () => {
   const p = CM.parameters(T, slack); assert.ok(p.lambda2 > 0.5 && p.sag > 0.01, JSON.stringify(p));
 });
 
-test('the harmonic series of a simulated stay cable gives its tension', () => {
+test('the harmonic series among the detected peaks of a simulated stay cable gives its tension', () => {
   const T = 3e6, fs = 50, y = CM.simulate({ c: stay, T, bc: 'fixed', fs, seconds: 600, modes: 14, x: 0.045, rms: 0.03, noise: 0.002, extra: [{ f: 0.62, rms: 0.02 }] });
-  const sp = DSP.svSpectrum(y, fs, { mode: 'segments', segmentCount: 8, segmentOverlap: 50, window: 'Hann', type: 'Power spectral density (PSD)', zeroPadding: '2 x Next power of 2', dB: false });
-  const r = CM.findModes(sp.y, sp.x0, sp.dx, { fMin: 0.3, fMax: 20, maxModes: 10, bOf: f => Math.PI ** 2 * stay.EI / (4 * stay.m * stay.L ** 4 * f * f) });
+  const r = modesOf(y, fs, { fMin: 0.3, fMax: 20, maxModes: 10, bOf: f => Math.PI ** 2 * stay.EI / (4 * stay.m * stay.L ** 4 * f * f) }, 8);
+  assert.ok(r.peaks.some(q => Math.abs(q.f - 0.62) < 0.01), 'the deck mode is detected …');
+  assert.ok(!r.modes.some(m => Math.abs(m.f - 0.62) < 0.05), '… but is no cable mode');
   assert.equal(r.modes.length, 10);
   const out = CM.outliers(r.modes), used = r.modes.filter((m, k) => !m.weak && !out[k]);
-  assert.deepEqual(r.modes.filter((m, k) => out[k]).map(m => m.n), [6], 'mode 6 is too weak in this record: a noise peak 1.7 % off is found');
+  assert.equal(used.length, 10, 'every mode found and used');
   used.forEach(m => near(m.f, CM.fixedFrequency(T, m.n, stay), 0.003, 'mode ' + m.n));
   const Ts = used.map(m => CM.fixedTension(m.f, m.n, stay));
   near(Ts.reduce((s, v) => s + v, 0) / Ts.length, T, 0.005, 'mean tension');
@@ -70,8 +78,7 @@ test('the harmonic series of a simulated stay cable gives its tension', () => {
 
 test('a short hanger: bending stiffness is found, the string formula overestimates', () => {
   const T = 6e5, fs = 400, y = CM.simulate({ c: hanger, T, bc: 'fixed', fs, seconds: 300, modes: 8, x: 0.11, rms: 0.05, noise: 0.002 });
-  const sp = DSP.svSpectrum(y, fs, { mode: 'segments', segmentCount: 8, segmentOverlap: 50, window: 'Hann', type: 'Power spectral density (PSD)', zeroPadding: '2 x Next power of 2', dB: false });
-  const r = CM.findModes(sp.y, sp.x0, sp.dx, { fMin: 1, fMax: 150, maxModes: 6 }); // no EI: the inharmonicity is searched
+  const r = modesOf(y, fs, { fMin: 1, fMax: 150, maxModes: 6 }); // no EI: the inharmonicity is searched
   assert.equal(r.modes.length, 6);
   r.modes.forEach(m => near(m.f, CM.fixedFrequency(T, m.n, hanger), 0.003, 'mode ' + m.n));
   const fixed = r.modes.map(m => CM.fixedTension(m.f, m.n, hanger)), string = r.modes.map(m => CM.stringTension(m.f, m.n, hanger));

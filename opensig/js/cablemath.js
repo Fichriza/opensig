@@ -2,7 +2,8 @@
    SI units throughout: c = {L (m), m (kg/m), EI (N·m²), EA (N), theta (rad, from horizontal)}, T (N), f (Hz).
    Methods: taut string, beam with hinged ends, beam with clamped ends (the exact frequency equation), a fit of
    (f_n/n)² over n² (tension and bending stiffness from several modes) and the practical formulas of Zui, Shinke &
-   Namita (1996), J. Struct. Eng. 122(6) 651–656. Peak finding: the harmonic series of the cable in a PSD. */
+   Namita (1996), J. Struct. Eng. 122(6) 651–656. The modes: the cable's harmonic series numbered among the peaks that the
+   peak detection (DSP.detectPeaks) finds in a spectrum. */
 (function (root) {
   'use strict';
   const PI = Math.PI, G = 9.80665;
@@ -109,72 +110,63 @@
     return { T, xi, gamma, key, mode: z.n, label: `${z.n === 1 ? 'first' : 'second'} mode, ${z.lim}${z.n === 1 ? ', Γ ≥ 3' : have1 ? ', Γ < 3' : ' (f₁ not used)'}`, note: notes.join('; ') };
   }
 
-  /* ---------- the harmonic series in a spectrum ---------- */
-  // P: power spectral density at f_k = f0 + k·df. o: {fMin, fMax, f1 (a hint; 0 = search), maxModes, minProm (dB),
-  // bOf(f) or b: the inharmonicity π²EI/(T L²) expected from the cable data (f_n ≈ n f √(1 + b n²))}.
-  // Returns {modes: [{n, f, level (dB), prom (dB above the local median), weak}], base (f₁ without bending), b, db, med}.
-  function findModes(P, f0, df, o) {
-    const N = P.length, fMin = Math.max(o.fMin || 0, f0), fMax = Math.min(o.fMax > 0 ? o.fMax : Infinity, f0 + (N - 1) * df);
+  /* ---------- the harmonic series among the detected peaks ---------- */
+  // The peaks come from the peak detection of the spectrum window (Signal tools ▸ Peak detection…); this numbers them.
+  // peaks: [{f (Hz)}]; spec: {db (the spectrum in dB), f0, df}, for each peak's height above the local median.
+  // o: {fMin, fMax, f1 (a hint; 0 = search), maxModes, minProm (dB), bOf(f) or b: the inharmonicity π²EI/(TL²) expected
+  // from the cable data (f_n ≈ n f √(1 + b n²))}. Returns {modes: [{n, f, level, prom, weak}], peaks, base, b, med, note}.
+  function assignModes(peaks, spec, o) {
+    const { db, f0, df } = spec, N = db.length;
+    const fMin = Math.max(o.fMin || 0, f0), fMax = Math.min(o.fMax > 0 ? o.fMax : Infinity, f0 + (N - 1) * df);
     const maxModes = Math.max(1, o.maxModes || 10), minProm = o.minProm ?? 6;
-    const db = Float64Array.from(P, v => 10 * Math.log10(Math.max(v, 1e-300)));
-    const kOf = f => (f - f0) / df;
-    // the local median: the noise floor a peak stands out from
-    const W = Math.max(4, Math.round((fMax - fMin) / 30 / df)), med = new Float64Array(N).fill(NaN);
-    const k0 = Math.max(0, Math.floor(kOf(fMin)) - W), k1 = Math.min(N - 1, Math.ceil(kOf(fMax)) + W);
-    const step = Math.max(1, Math.round(W / 8)), at = []; // every step-th line, interpolated between
+    // the local median: the noise floor a peak stands out from (every step-th line, interpolated between)
+    const kOf = f => (f - f0) / df, W = Math.max(4, Math.round((fMax - fMin) / 30 / df)), med = new Float64Array(N).fill(NaN);
+    const k0 = Math.max(0, Math.floor(kOf(fMin)) - W), k1 = Math.min(N - 1, Math.ceil(kOf(fMax)) + W), step = Math.max(1, Math.round(W / 8)), at = [];
     for (let k = k0; k <= k1 + step; k += step) { const kk = Math.min(k, k1), a = Array.from(db.subarray(Math.max(0, kk - W), Math.min(N, kk + W + 1))).sort((x, y) => x - y); at.push([kk, a[a.length >> 1]]); }
     for (let i = 0; i + 1 < at.length; i++) { const [ka, va] = at[i], [kb, vb] = at[i + 1]; for (let k = ka; k <= kb; k++) med[k] = kb > ka ? va + (vb - va) * (k - ka) / (kb - ka) : va; }
-    // the highest line between two frequencies in O(1): a sparse table of the highest line in every 2^j lines
-    const tab = [Int32Array.from(db, (_, k) => k)];
-    for (let j = 1; (1 << j) <= N; j++) {
-      const prev = tab[j - 1], half = 1 << (j - 1), cur = new Int32Array(N - (1 << j) + 1);
-      for (let k = 0; k < cur.length; k++) { const a = prev[k], b = prev[k + half]; cur[k] = db[a] >= db[b] ? a : b; }
-      tab.push(cur);
-    }
-    const peakIn = (fa, fb) => {
-      const ka = Math.max(0, Math.ceil(kOf(fa))), kb = Math.min(N - 1, Math.floor(kOf(fb)));
-      if (kb < ka) return -1;
-      const j = 31 - Math.clz32(kb - ka + 1), a = tab[j][ka], b = tab[j][kb - (1 << j) + 1];
-      return db[a] >= db[b] ? a : b;
+    const lineAt = f => Math.max(0, Math.min(N - 1, Math.round(kOf(f))));
+    const pk = peaks.filter(p => p.f >= fMin && p.f <= fMax).map(p => { const k = lineAt(p.f); return { f: p.f, level: db[k], prom: isFinite(med[k]) ? db[k] - med[k] : 0 }; }).sort((x, y) => x.f - y.f);
+    if (!pk.length) return { modes: [], peaks: pk, base: NaN, b: 0, med, note: 'No peaks detected in the frequency range' };
+    const best = (fa, fb) => { // the detected peak between two frequencies that stands out most
+      let lo = 0, hi = pk.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (pk[mid].f < fa) lo = mid + 1; else hi = mid; }
+      let r = null; for (let i = lo; i < pk.length && pk[i].f <= fb; i++) if (!r || pk[i].prom > r.prom) r = pk[i];
+      return r;
     };
-    const prom = k => k >= 0 && isFinite(med[k]) ? db[k] - med[k] : 0;
-    // 1. the fundamental: the f₁ (and inharmonicity) whose first harmonics stand out most on average; of the candidates
-    // within 85 % of the best score the lowest wins, so 2f₁ (every other harmonic) does not – and f₁/2 scores low.
-    // Candidates 0.2 % apart (the windows are ±2 %); the inharmonicity from the cable data (o.bOf(f)) is tried too.
-    const bs = [0, 0.001, 0.003, 0.01, 0.03];
-    const lo = o.f1 > 0 ? Math.max(fMin, 0.85 * o.f1) : Math.max(fMin, 2 * df), hi = o.f1 > 0 ? Math.min(fMax, 1.15 * o.f1) : fMax / 2;
-    const cands = [];
-    for (let f = lo; f <= hi; f += Math.max(df / 2, 0.002 * f)) {
-      let best = -1, bestB = 0;
-      for (const b of o.bOf ? bs.concat(o.bOf(f)) : o.b > 0 ? bs.concat(o.b) : bs) {
-        let s = 0, cnt = 0;
-        for (let n = 1; n <= Math.min(6, maxModes); n++) {
-          const fn = n * f * Math.sqrt(1 + b * n * n), tol = Math.max(2 * df, 0.02 * fn);
-          if (fn + tol > fMax) break;
-          s += Math.min(25, Math.max(0, prom(peakIn(fn - tol, fn + tol)))); cnt++;
-        }
-        if (cnt >= (o.f1 > 0 ? 1 : 2) && s / cnt > best) { best = s / cnt; bestB = b; }
+    // 1. the fundamental: every detected peak is tried as harmonic 1…6 of a base f (with an inharmonicity b), and the base
+    // whose first six harmonics fall on the strongest detected peaks, on average, wins (each within ±2 %). Of the bases
+    // within 85 % of the best score, those with the lowest first mode f√(1+b) are kept – so 2f₁ (every other harmonic) is
+    // not taken, and f₁/2 scores low – and of these the best, with the least bending.
+    const bs = [0], cands = []; for (let b = 3e-4; b < 0.25; b *= 1.2) bs.push(b); // 0 and 0.0003 … 0.25, 20 % apart
+    for (const p of pk) for (let n = 1; n <= 6; n++) for (const b of o.bOf ? bs.concat(o.bOf(p.f / n)) : o.b > 0 ? bs.concat(o.b) : bs) {
+      const f = p.f / (n * Math.sqrt(1 + b * n * n));
+      if (o.f1 > 0 && Math.abs(f / o.f1 - 1) > 0.15) continue;
+      let s = 0, cnt = 0;
+      for (let h = 1; h <= Math.min(6, maxModes); h++) {
+        const fh = h * f * Math.sqrt(1 + b * h * h), tol = Math.max(2 * df, 0.02 * fh);
+        if (fh + tol > fMax) break;
+        const q = best(fh - tol, fh + tol); s += q ? Math.min(25, Math.max(0, q.prom)) : 0; cnt++;
       }
-      if (best >= 0) cands.push({ f, b: bestB, s: best });
+      if (cnt >= (o.f1 > 0 ? 1 : 2)) cands.push({ f, b, s: s / cnt });
     }
-    if (!cands.length) return { modes: [], base: NaN, b: 0, db, med, note: 'No harmonic series found in the frequency range' };
-    const top = Math.max(...cands.map(x => x.s)), pick = cands.find(x => x.s >= 0.85 * top);
-    // 2. the modes one by one, each predicted from the ones found so far ((f_n/n)² linear in n²)
+    if (!cands.length) return { modes: [], peaks: pk, base: NaN, b: 0, med, note: 'No harmonic series among the detected peaks' };
+    const top = Math.max(...cands.map(x => x.s)), near = cands.filter(x => x.s >= 0.85 * top), first = x => x.f * Math.sqrt(1 + x.b);
+    const low = Math.min(...near.map(first)), pick = near.filter(x => first(x) <= 1.03 * low).sort((x, y) => y.s - x.s || x.b - y.b)[0];
+    // 2. mode after mode: the strongest detected peak within ±20 % of the spacing around the frequency predicted from the
+    // modes found so far ((f_n/n)² linear in n²); a harmonic without a detected peak is skipped
     const modes = [], spacing = pick.f;
     let a = pick.f * pick.f, slope = a * pick.b;
     for (let n = 1; n <= maxModes; n++) {
       const pred = n * Math.sqrt(Math.max(a + slope * n * n, 1e-12)), tol = Math.max(2 * df, 0.2 * spacing);
-      if (pred + tol > fMax) break;
-      const k = peakIn(pred - tol, pred + tol); if (k < 0) break;
-      let f = f0 + k * df;
-      if (k > 0 && k < N - 1) { const y0 = db[k - 1], y1 = db[k], y2 = db[k + 1], d = y0 - 2 * y1 + y2; if (d < 0) f += 0.5 * (y0 - y2) / d * df; }
-      const q = prom(k);
-      modes.push({ n, f, level: db[k], prom: q, weak: q < minProm });
+      if (pred - tol > fMax) break;
+      const q = best(pred - tol, pred + tol); if (!q || modes.some(m => m.f === q.f)) continue;
+      modes.push({ n, f: q.f, level: q.level, prom: q.prom, weak: q.prom < minProm });
       const good = modes.filter(x => !x.weak);
-      if (good.length >= 2) { const fit = fitTension(good, { m: 1, L: 0.5 }); if (fit.b >= 0 && isFinite(fit.a)) { a = fit.a; slope = fit.b; } } // m = 1, L = ½: T = a
-      else if (good.length === 1) a = (good[0].f / good[0].n) ** 2 / (1 + pick.b * good[0].n ** 2);
+      if (good.length >= 2) { // m = 1, L = ½: T = a; a falling line (no bending to see) becomes a level one
+        const fit = fitTension(good, { m: 1, L: 0.5 });
+        if (fit.b >= 0) { a = fit.a; slope = fit.b; } else { a = good.reduce((t, x) => t + (x.f / x.n) ** 2, 0) / good.length; slope = 0; }
+      } else if (good.length === 1) { a = (good[0].f / good[0].n) ** 2 / (1 + pick.b * good[0].n ** 2); slope = a * pick.b; }
     }
-    return { modes, base: pick.f, b: pick.b, db, med };
+    return { modes, peaks: pk, base: pick.f, b: pick.b, med };
   }
 
   /* ---------- an example record ---------- */
@@ -200,6 +192,6 @@
   }
 
   const CABLEMATH = { G, stringTension, stringFrequency, hingedTension, hingedFrequency, fixedTension, fixedFrequency, frequency,
-    fitTension, outliers, parameters, zui, zuiGamma, ZUI, findModes, simulate };
+    fitTension, outliers, parameters, zui, zuiGamma, ZUI, assignModes, simulate };
   if (typeof module !== 'undefined' && module.exports) module.exports = CABLEMATH; else root.CABLEMATH = CABLEMATH;
 })(typeof window !== 'undefined' ? window : globalThis);

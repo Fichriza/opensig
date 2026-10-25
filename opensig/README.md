@@ -174,10 +174,13 @@ generator writes a `.bat` file built on these commands.
 - **Cable tension from vibration** (`js/cable.js`, `js/cablemath.js`; 3D tools ▸ Cable tension from vibration…, the
   large cable button right of Geometry): the tension of a stay cable, hanger or tie from an accelerometer on it. Input:
   the signal (its visible part) and the cable data – length, mass per metre, E, I, A, inclination, design tension –
-  kept for the next cable. The Welch PSD (Hann, half-overlapping segments) is searched for the harmonic series: the
-  first frequency whose first six harmonics stand out most above the local median (with the inharmonicity of bending
-  stiffness), then mode by mode from a line of (f_n/n)² over n²; weak peaks and modes off a robust Theil–Sen line are
-  left out, and a click on a mode (table or plot) overrides that. Five methods: taut string, beam with hinged ends,
+  kept for the next cable. From a signal it opens a PSD window (Welch, Hann, half-overlapping segments, dB) with its
+  peak detection switched on (Signal tools ▸ Peak detection…, prominence 8 dB, parabolic position) and the cable window
+  under it; on a spectrum window it uses that spectrum and its peak detection. Every peak detection method works, and
+  the cable window follows its settings (Peak detection… in its bar). The cable window numbers the detected peaks as
+  the harmonic series: the first frequency whose first six harmonics fall on the detected peaks that stand out most
+  (with the inharmonicity of bending stiffness), then mode by mode from a line of (f_n/n)² over n²; weak peaks and
+  modes off a robust Theil–Sen line are left out, and a click on a mode (table or plot) overrides that. Five methods: taut string, beam with hinged ends,
   beam with clamped ends (the exact frequency equation, solved by bisection), a fit of several modes that also finds EI,
   and Zui, Shinke & Namita (1996) with the bending and sag parameters ξ and Γ; plus Irvine's λ², the sag ratio, the
   ratio to the design tension and notes when the methods disagree. Copy and Excel export (sheets Tension and Modes).

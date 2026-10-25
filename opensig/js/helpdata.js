@@ -704,7 +704,7 @@ ${SEE('georoving', 'rovresults', 'geometry')}`)
 
     B('cablebook', 'Cable Tension', '<p>The tension of stay cables, hangers and ties from the vibration measured on them.</p>', [
       T('cable', 'Cable tension from vibration', ['cable', 'cable tension', 'stay cable', 'hanger', 'tie rod', 'tension', 'vibration method', 'taut string', 'Zui', 'bending stiffness', 'sag', 'design tension', 'accelerometer', 'kN'], `
-<p>${P('3D tools', 'Cable tension from vibration…')} – or the cable button right of the Geometry button – estimates the tension of a stay cable, hanger or tie from the acceleration measured on it. A tensioned cable vibrates at a series of almost evenly spaced natural frequencies, ${M`f_n\approx n\,f_1`}, and their spacing grows with the tension. The module finds this series in the spectrum of the record and turns it into the tension, by five methods you can compare.</p>
+<p>${P('3D tools', 'Cable tension from vibration…')} – or the cable button right of the Geometry button – estimates the tension of a stay cable, hanger or tie from the acceleration measured on it. A tensioned cable vibrates at a series of almost evenly spaced natural frequencies, ${M`f_n\approx n\,f_1`}, and their spacing grows with the tension. The peaks of the record's spectrum are found by the ${L('peaks')} you know from every signal window; the module picks out the cable's series among them and turns it into the tension, by five methods you can compare.</p>
 <h2>Measuring</h2>
 <ul><li>Fix an accelerometer across the cable, a few percent of its length from an anchorage (2–5 %). There every mode moves; at the middle, a third or a quarter of the length some modes stand still.</li>
 <li>Record ambient vibration (wind, traffic) for 5–10 minutes or more; a longer record gives a smoother spectrum and finer frequencies.</li>
@@ -712,7 +712,9 @@ ${SEE('georoving', 'rovresults', 'geometry')}`)
 <h2>Using it</h2>
 <ol><li>Open the record and select its window. Like an FFT, the module uses the <b>visible part</b>: zoom to analyse only a part of the record.</li>
 <li>Choose ${P('3D tools', 'Cable tension from vibration…')} and enter the cable data (below). The data are kept for the next cable of the same bridge.</li>
-<li>The window shows the spectrum (PSD) with the modes found, the tension and its ratio to the design tension, and two tables: the tension by every method, and every mode with its frequency and tension.</li>
+<li>Two linked windows open: a <b>PSD</b> of the record, with its peak detection switched on (the prominence method: peaks at least 8 dB above the valleys beside them), and the <b>cable window</b>, which numbers the detected peaks as the cable's modes. Chosen on a spectrum window instead, the module uses that spectrum and its peak detection.</li>
+<li>Tune the peaks with <b>Peak detection…</b> in the cable window (or ${P('Signal tools', 'Peak detection…')} on the PSD window): every method and setting of the ${L('peaks')} can be used, and the cable window follows. If a mode is missing, lower the prominence; if noise peaks get in, raise it. The PSD itself – averaging and resolution – is set in the PSD window's ${L('properties')}.</li>
+<li>The cable window shows the spectrum with the detected peaks (orange marks) and the modes found, the tension and its ratio to the design tension, and two tables: the tension by every method, and every mode with its frequency and tension.</li>
 <li>In the spectrum, green lines are the modes used, grey dashed lines weak peaks or modes you left out, red dashed lines modes off the harmonic series (another component's peak, or noise). Click a mode – in the table or the spectrum – to leave it out or use it; <b>Automatic modes</b> undoes your clicks.</li>
 <li>Click a method in the table, or choose it in <b>Tension from</b>, to make it the result.</li>
 <li><b>Copy</b> puts the results on the clipboard for Excel or Word; <b>Excel…</b> saves a workbook with the sheets Tension and Modes. <b>Cable data…</b> changes the data.</li></ol>
@@ -723,10 +725,10 @@ ${SEE('georoving', 'rovresults', 'geometry')}`)
 <tr><td>E (MPa), I (mm⁴)</td><td>The bending stiffness EI. For a strand cable the strands slide on each other, so the stiffness of the separate strands, ${M`I=n_s\pi d^4/64`}, is a common lower value; for a solid bar, ${M`\pi d^4/64`}. I = 0 means no bending stiffness: a taut string</td></tr>
 <tr><td>A (mm²), θ (°)</td><td>The steel area and the inclination from horizontal, for the sag parameters λ² and Γ (90° for a vertical hanger: no sag)</td></tr>
 <tr><td>Design tension (kN)</td><td>For the ratio of measured to design tension (within ±5 % it is shown green)</td></tr>
-<tr><td>Lowest / highest frequency</td><td>The range searched for modes; 0 as the highest is 80 % of half the sample rate</td></tr>
+<tr><td>Lowest / highest frequency</td><td>The range searched for modes; 0 as the highest: the whole spectrum shown</td></tr>
 <tr><td>First frequency, about</td><td>Helps when another peak (of the deck or tower) is taken for the cable's: the search stays within ±15 % of it</td></tr>
 <tr><td>Modes, at most</td><td>How many modes are searched</td></tr>
-<tr><td>Averaged segments</td><td>The spectrum averages this many half-overlapping segments: more give a smoother spectrum, fewer a finer frequency resolution</td></tr></table>
+<tr><td>Averaged segments of the PSD</td><td>Only when the PSD window is made: it averages this many half-overlapping segments – more give a smoother spectrum, fewer a finer frequency resolution. Later, change it in the PSD window's properties</td></tr></table>
 <h2>Which method?</h2>
 <ul><li><b>Beam, clamped ends (exact)</b> – the default: the exact frequencies of a tensioned beam fixed at both ends, with the bending stiffness EI. Right for most anchored cables and hangers. With I = 0 it is the taut string.</li>
 <li><b>Beam, hinged ends</b> – a closed formula with EI for ends that can rotate; for clamped short members it gives too much.</li>
@@ -736,12 +738,12 @@ ${SEE('georoving', 'rovresults', 'geometry')}`)
 <p>The line under the result gives ${M`f_1`}, the bending parameter ${M`\xi=L\sqrt{T/EI}`} (bending stiffness matters below about 200) and Irvine's sag parameter ${M`\lambda^2`} (sag raises the first mode noticeably above about 0.1). When methods differ, the yellow notes say why. ${L('cablemath')} gives every formula.</p>
 <h2>Examples</h2>
 <p>${P('Help', 'Examples', 'Stay cable: tension from ambient vibration')} and ${P('Help', 'Examples', 'Arch hanger: tension with bending stiffness')} open simulated records of cables with a known tension – 2950 kN and 450 kN – so you can see how close each method comes. On the short hanger the taut string gives far too much.</p>
-${SEE('cablemath', 'fft', 'geometry')}`),
+${SEE('cablemath', 'peaks', 'fft', 'geometry')}`),
       T('cablemath', 'Cable tension: how it is calculated', ['cable formulas', 'string formula', 'beam with tension', 'clamped beam', 'frequency equation', 'Irvine', 'lambda squared', 'sag-extensibility', 'xi', 'Zui Shinke Namita', 'flexural rigidity'], `
 <h2>The spectrum and the modes</h2>
-<p>The PSD of the visible part is averaged over ${M`J`} half-overlapping segments with a Hann window and zero-padded to twice the next power of 2 (see ${L('fftparams')}). The height of a peak is measured above the local median of the spectrum in dB, its prominence. The first frequency is searched for as the one whose first six harmonics, allowing for bending stiffness,</p>
-${EQ`f_n=n\,f\sqrt{1+b\,n^2},\qquad b\in\left\{0,\ 0.001,\ 0.003,\ 0.01,\ 0.03,\ \frac{\pi^2EI}{4mL^4f^2}\right\}`}
-<p>stand out most on average (each searched within ±2 %). Of the candidates within 85 % of the best score, the lowest wins, so twice the first frequency is not taken. Then mode after mode is predicted from the ones found so far, with the straight line ${M`(f_n/n)^2=a+c\,n^2`}, and taken as the highest line within ±20 % of the spacing, refined by a parabola through the dB values. Peaks less than 6 dB above the median are weak. A mode is off the series when ${M`(f_n/n)^2`} lies more than 4 robust standard deviations (1.4826 × the median absolute deviation) and more than 1 % from a Theil–Sen line over ${M`n^2`}. Weak and off-series modes are left out unless you use them.</p>
+<p>The spectrum is the PSD window: the visible part averaged over ${M`J`} half-overlapping segments with a Hann window, zero-padded to twice the next power of 2, in dB (see ${L('fftparams')}). Its ${L('peaks')} finds the peaks – by default the prominence method, local maxima at least 8 dB above the higher of the two valleys beside them, placed between lines by a parabola. The cable window numbers them. Every detected peak is tried as harmonic ${M`n=1\ldots6`} of a first frequency ${M`f`}, with an inharmonicity ${M`b`} for the bending stiffness (0, and 0.0003 to 0.25 in steps of 20 %):</p>
+${EQ`f_n=n\,f\sqrt{1+b\,n^2}`}
+<p>The ${M`f`} whose first six harmonics fall on the detected peaks that stand out most (each within ±2 %; the height above the local median of the spectrum in dB) wins. Of the candidates within 85 % of the best score, those with the lowest first mode are kept – so twice the first frequency is not taken – and of these the best, with the least bending. Then mode after mode is predicted from the ones found so far, with the straight line ${M`(f_n/n)^2=a+c\,n^2`}, and taken as the detected peak that stands out most within ±20 % of the spacing; a harmonic without a detected peak is skipped. Peaks less than 6 dB above the median are weak. A mode is off the series when ${M`(f_n/n)^2`} lies more than 4 robust standard deviations (1.4826 × the median absolute deviation) and more than 1 % from a Theil–Sen line over ${M`n^2`}. Weak and off-series modes are left out unless you use them.</p>
 <h2>Taut string</h2>
 ${EQ`f_n=\frac{n}{2L}\sqrt{\frac{T}{m}}\qquad\Rightarrow\qquad T_n=4mL^2\left(\frac{f_n}{n}\right)^2`}
 <h2>Beam with hinged ends</h2>
@@ -774,7 +776,7 @@ ${EQ`\xi=L\sqrt{\frac{T}{EI}},\qquad\delta=\frac{mgL\cos\theta}{8T},\qquad\lambd
 <p>Irvine's ${M`\lambda^2`} measures how much the sag stiffens the symmetric in-plane modes. For small ${M`\lambda^2`} the first frequency rises by about ${M`4\lambda^2/\pi^4`}, so the tension from it is about ${M`8\lambda^2/\pi^4`} too high; the even modes do not change. Clamped ends without sag raise the first frequency by about ${M`2/\xi`}.</p>
 <h2>The result</h2>
 <p>For the string and the beams, ${M`T`} is the mean of the tensions ${M`T_n`} of the modes used, and the scatter is their standard deviation over the mean. The ratio to the design tension is ${M`T/T_{\mathrm{design}}`}.</p>
-${SEE('cable', 'fftparams')}`)]),
+${SEE('cable', 'peaks', 'fftparams')}`)]),
     B('meas', 'Instruments', '<p>Instruments measure a single value of their parent window, such as its RMS or dominant frequency, and update with it.</p>', [
       T('instruments', 'Instruments', ['instrument', 'measure', 'gauge', 'statistics', 'alarm', 'critical range'], `
 <p>Choose an instrument from the ${P('Instruments')} menu or the instrument buttons on the second toolbar row. It opens as a small window showing one value of the active window's visible part, and recalculates whenever that changes.</p>

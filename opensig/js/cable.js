@@ -1,9 +1,11 @@
 /* OpenSig Cable tension module (3D tools ▸ Cable tension from vibration…, the button right of Geometry): the tension of
-   a stay cable or hanger from an accelerometer fixed on it. The window shows the PSD of the visible part with the
-   cable's harmonic series, its modes in a table and the tension by five methods – taut string, beam with hinged or
-   clamped ends, a fit of several modes (which also finds the bending stiffness) and Zui et al. (1996) – with the bending
-   (ξ) and sag (λ²) parameters and the ratio to the design tension. Click a mode, in the table or the plot, to leave it
-   out or use it; click a method to choose it. Math: cablemath.js. */
+   a stay cable or hanger from an accelerometer fixed on it. The chain is signal → PSD window → cable window: the peaks
+   are those of the PSD window's peak detection (Signal tools ▸ Peak detection…, switched on with the prominence
+   method), and the cable window numbers them as the cable's harmonic series. It shows the spectrum with the detected
+   peaks and the modes, a table of the modes and the tension by five methods – taut string, beam with hinged or clamped
+   ends, a fit of several modes (which also finds the bending stiffness) and Zui et al. (1996) – with the bending (ξ)
+   and sag (λ²) parameters and the ratio to the design tension. Click a mode, in the table or the plot, to leave it out
+   or use it; click a method to choose it. Math: cablemath.js. */
 (function (root) {
   'use strict';
   const { APP, UI, OPS, DSP } = root, CM = root.CABLEMATH;
@@ -22,24 +24,45 @@
   const KEEP = 'opensig.cable', KEPT = ['L', 'm', 'E', 'A', 'I', 'theta', 'Tdesign', 'method', 'fMin', 'fMax', 'maxModes', 'nseg'];
   const lastData = () => { try { return JSON.parse(localStorage.getItem(KEEP)) || {}; } catch { return {}; } };
   const keepData = p => { try { localStorage.setItem(KEEP, JSON.stringify(Object.fromEntries(KEPT.map(k => [k, p[k]])))); } catch { /* storage blocked */ } };
+  // a spectrum window's X unit per Hz (Hz, CPM, kHz, MHz); a time signal has none
+  const perHz = d => d && d.y && !d.x ? (DSP.SV_XUNITS || {})[d.xUnit] : undefined;
+  const isSpectrum = d => perHz(d) != null;
+  // the peak detection a new PSD window starts with: peaks at least 8 dB above the valleys beside them, between lines
+  const PEAKS = () => Object.assign(DSP.defaultPeakSettingsAll([]), { on: true, method: 'prominence', prom: 8, useHeight: false, distance: 1, minWidth: 0, negative: false, refine: 'parabolic' });
+  const methodName = s => (DSP.PEAK_METHODS.find(m => m[0] === (s && s.method || 'threshold')) || [0, 'Threshold'])[1] + (s && s.method === 'prominence' ? `, prominence ≥ ${s.prom}` : '');
 
   /* ---------- the analysis ---------- */
-  function analyse(d, p) {
-    if (!d || !d.y) throw new Error('Waiting for the signal');
-    if (d.x) throw new Error('The cable tension needs a uniformly sampled signal');
-    if (d.y.length < 256) throw new Error('The visible part is too short – zoom out');
-    const fs = 1 / d.dx, c = cableOf(p), have = known(p);
-    const sp = DSP.svSpectrum(d.y, fs, { mode: 'segments', segmentCount: Math.max(1, Math.round(p.nseg)), segmentOverlap: 50, window: 'Hann', type: 'Power spectral density (PSD)', zeroPadding: '2 x Next power of 2', dB: false });
-    const fMax = Math.min(p.fMax > 0 ? p.fMax : Infinity, 0.8 * fs / 2);
+  // d: the parent's visible part – a spectrum with peak detection (src), or the signal itself in cable windows made by the
+  // first version (then the PSD and the standard peak detection are calculated here)
+  function analyse(d, p, src) {
+    if (!d || !d.y) throw new Error('Waiting for the spectrum');
+    const c = cableOf(p), have = known(p);
+    let spec, peaks, sp = null, fTop;
+    if (isSpectrum(d)) {
+      const k = perHz(d), u = d.yUnit || '';
+      spec = { db: /^dB/.test(u) ? d.y : Float64Array.from(d.y, v => (/²/.test(u) ? 10 : 20) * Math.log10(Math.max(Math.abs(v), 1e-300))), f0: d.x0 / k, df: d.dx / k };
+      fTop = spec.f0 + (spec.db.length - 1) * spec.df;
+      const pk = src && APP.peaksOf(src);
+      if (!pk) return { needPeaks: true, spec, c, peaks: [], modes: [], used: [], fMin: Math.max(p.fMin || 0, spec.f0), fMax: Math.min(p.fMax > 0 ? p.fMax : Infinity, fTop) };
+      peaks = pk.x.filter((_, i) => !pk.neg[i]).map(x => ({ f: x / k }));
+    } else {
+      if (d.x) throw new Error('The cable tension needs a uniformly sampled signal, or its spectrum');
+      if (d.y.length < 256) throw new Error('The visible part is too short – zoom out');
+      const fs = 1 / d.dx;
+      sp = DSP.svSpectrum(d.y, fs, { mode: 'segments', segmentCount: Math.max(1, Math.round(p.nseg)), segmentOverlap: 50, window: 'Hann', type: 'Power spectral density (PSD)', zeroPadding: '2 x Next power of 2', dB: true });
+      spec = { db: sp.y, f0: sp.x0, df: sp.dx }; fTop = 0.8 * fs / 2;
+      peaks = DSP.detectPeaks(sp.y, PEAKS()).idx.map(i => ({ f: sp.x0 + DSP.refinePeak(sp.y, i, 'parabolic').pos * sp.dx }));
+    }
+    const fMax = Math.min(p.fMax > 0 ? p.fMax : Infinity, fTop);
     const bOf = have && c.EI > 0 ? f => Math.PI ** 2 * c.EI / (4 * c.m * c.L ** 4 * f * f) : null; // π²EI/(TL²), T from the string
-    const r = CM.findModes(sp.y, sp.x0, sp.dx, { fMin: p.fMin, fMax, f1: p.f1, maxModes: p.maxModes, bOf });
+    const r = CM.assignModes(peaks, spec, { fMin: p.fMin, fMax, f1: p.f1, maxModes: p.maxModes, bOf });
     const out = CM.outliers(r.modes), use = p.use || {};
     const modes = r.modes.map((m, k) => {
       const auto = !m.weak && !out[k], used = use[m.n] != null ? !!use[m.n] : auto;
       return Object.assign({}, m, { outlier: out[k], auto, used, Ts: have ? CM.stringTension(m.f, m.n, c) : NaN,
         Th: have && c.EI > 0 ? CM.hingedTension(m.f, m.n, c) : NaN, Tf: have && c.EI > 0 ? CM.fixedTension(m.f, m.n, c) : NaN });
     });
-    const used = modes.filter(m => m.used), res = { sp, fs, fMax, fMin: Math.max(p.fMin || 0, sp.x0), modes, used, note: r.note, c };
+    const used = modes.filter(m => m.used), res = { spec, sp, peaks: r.peaks, fMax, fMin: Math.max(p.fMin || 0, spec.f0), modes, used, note: r.note, c };
     if (!have) return res;
     const mean = key => {
       const v = used.map(m => m[key]).filter(isFinite), n = v.length, T = n ? v.reduce((s, x) => s + x, 0) / n : NaN;
@@ -55,7 +78,7 @@
   }
   function warnings(res, p, c) {
     const out = [], m = res.methods, par = res.par;
-    if (!res.modes.length) out.push(res.note || 'No modes found – check the frequency range, or give the first frequency.');
+    if (!res.modes.length) out.push((res.note || 'No modes found') + ' – check the frequency range and the peak detection (Peak detection…), or give the first frequency.');
     else if (res.used.length < 3) out.push('Fewer than 3 modes are used: the result rests on few peaks.');
     if (!(c.EI > 0) && (p.method === 'fixed' || p.method === 'hinged')) out.push('No bending stiffness given (I = 0): the taut-string formula is used.');
     if (res.key === 'string' && m.fixed && m.fixed.T > 0 && m.string.T / m.fixed.T > 1.02)
@@ -76,10 +99,11 @@
     compute(w, [d]) {
       const v = viewOf(w);
       v.res = null; v.err = null;
-      try { v.res = analyse(d, P(w)); } catch (e) { v.err = e.message; }
+      try { v.res = analyse(d, P(w), S.wins.get(w.parents[0])); } catch (e) { v.err = e.message; }
       queueMicrotask(() => render(w, v));
       const r = v.res;
-      return { dom: v.root, note: r ? `${r.used.length} of ${r.modes.length} modes` + (r.T > 0 ? ` · T = ${kN(r.T)} kN` : '') + ` · Δf ${fmt(r.sp.dx, 3)} Hz` : v.err };
+      return { dom: v.root, note: !r ? v.err : r.needPeaks ? 'Peak detection is off in the spectrum window'
+        : `${r.peaks.length} peaks, ${r.used.length} of ${r.modes.length} modes used` + (r.T > 0 ? ` · T = ${kN(r.T)} kN` : '') + ` · Δf ${fmt(r.spec.df, 3)} Hz` };
     }
   };
 
@@ -106,11 +130,20 @@
     const sel = h('select', { class: 'geo-sel', title: 'The method for the tension' }, ...METHODS.map(([k, l]) => h('option', { value: k }, l)));
     sel.value = P(w).method; sel.onchange = () => setMethod(w, sel.value);
     v.sel = sel; v.info = h('span', { class: 'cab-info' });
-    v.bar.replaceChildren(btn('Cable data…', 'Length, mass, stiffness, design tension and the peak search', () => settings(w)), h('span', { class: 'cab-lab' }, 'Tension from'), sel,
+    v.bar.replaceChildren(btn('Cable data…', 'Length, mass, stiffness, design tension and the modes searched', () => settings(w)),
+      btn('Peak detection…', 'The peak detection of the spectrum window (Signal tools ▸ Peak detection…): method and settings', () => peakSettings(w)), h('span', { class: 'cab-lab' }, 'Tension from'), sel,
       btn('Automatic modes', 'Use the modes chosen automatically again (undo your clicks on modes)', () => { P(w).use = {}; APP.queueCompute(w); }),
       btn('Copy', 'Copy the results as a table (for Excel or Word)', () => copy(w)), btn('Excel…', 'Save the results as an Excel workbook', () => excel(w)), v.info);
   }
   function setMethod(w, k) { P(w).method = k; keepData(P(w)); APP.queueCompute(w); }
+  // the peak detection dialog of the spectrum window; the cable window follows its settings
+  function peakSettings(w) {
+    const src = S.wins.get(w.parents[0]);
+    if (!src || !isSpectrum(src.data)) throw new Error('This cable window reads the signal itself (it was made by an earlier version), with the standard peak detection. Choose Cable tension again on the signal to get a spectrum window with its own peak detection.');
+    if (!src.display.peaks) APP.setPeaks(src, PEAKS());
+    APP.activate(src);
+    return UI.findItem('Signal tools', 'Peak detection…').run();
+  }
   function toggle(w, m) {
     const use = P(w).use; use[m.n] = !m.used;
     if (use[m.n] === m.auto) delete use[m.n];
@@ -121,6 +154,12 @@
     const r = v.res, p = P(w);
     v.sel.value = p.method;
     if (!r) { v.left.replaceChildren(h('div', { class: 'cab-empty' }, v.err || 'No data')); v.right.replaceChildren(); draw(w, v); return; }
+    const src = S.wins.get(w.parents[0]), srcName = src ? src.id + '#' + src.title : '';
+    if (r.needPeaks) {
+      v.left.replaceChildren(h('div', { class: 'cab-empty' }, `The modes are found among the peaks that the peak detection of the spectrum window ${srcName} finds – and it is off. `,
+        btn('Turn it on', 'Peak detection with the prominence method: peaks 8 dB above the valleys beside them', () => APP.setPeaks(src, PEAKS())), ' ', btn('Peak detection…', 'Choose the method and its settings', () => peakSettings(w))));
+      v.right.replaceChildren(); draw(w, v); return;
+    }
     // the result
     const left = [];
     if (!r.methods) left.push(h('div', { class: 'cab-empty' }, 'Enter the cable data – length and mass per metre at least – to get the tension. ', btn('Cable data…', '', () => settings(w))));
@@ -139,6 +178,8 @@
       if (r.warn.length) left.push(h('ul', { class: 'cab-warn' }, ...r.warn.map(t => h('li', {}, t))));
       left.push(methodsTable(w, r));
     }
+    left.push(h('div', { class: 'cab-sub' }, r.sp ? `${r.peaks.length} peaks found by the standard peak detection (${methodName(PEAKS())}) in a PSD of the signal`
+      : `${r.peaks.length} peaks found by the peak detection of ${srcName} (${methodName(src && src.display.peaks)})`));
     v.left.replaceChildren(...left);
     v.right.replaceChildren(modesTable(w, r));
     draw(w, v);
@@ -177,10 +218,10 @@
   function layout(v) {
     const r = v.res, W = v.canvas.clientWidth, H = v.canvas.clientHeight;
     if (!r || !W || !H) return null;
-    const L = 56, R = 12, T = 16, B = 32, fa = r.fMin, fb = r.fMax, sp = r.sp;
-    const k0 = Math.max(0, Math.ceil((fa - sp.x0) / sp.dx)), k1 = Math.min(sp.y.length - 1, Math.floor((fb - sp.x0) / sp.dx));
+    const L = 56, R = 12, T = 16, B = 32, fa = r.fMin, fb = r.fMax, sp = r.spec;
+    const k0 = Math.max(0, Math.ceil((fa - sp.f0) / sp.df)), k1 = Math.min(sp.db.length - 1, Math.floor((fb - sp.f0) / sp.df));
     let hi = -Infinity, lo = Infinity;
-    for (let k = k0; k <= k1; k++) { const d = 10 * Math.log10(Math.max(sp.y[k], 1e-300)); if (d > hi) hi = d; if (d < lo) lo = d; }
+    for (let k = k0; k <= k1; k++) { const d = sp.db[k]; if (d > hi) hi = d; if (d < lo) lo = d; }
     hi = Math.ceil((hi + 3) / 10) * 10; lo = Math.max(Math.floor(lo / 10) * 10, hi - 90);
     return { W, H, L, R, T, B, fa, fb, k0, k1, hi, lo, X: f => L + (f - fa) / (fb - fa) * (W - L - R), Y: d => T + (hi - d) / (hi - lo) * (H - T - B), F: x => fa + (x - L) / (W - L - R) * (fb - fa) };
   }
@@ -209,16 +250,19 @@
     ctx.fillStyle = muted; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.fillText('Hz', W - g.R, H - 2);
     ctx.save(); ctx.translate(12, g.T + (H - g.T - g.B) / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('PSD (dB)', 0, 0); ctx.restore();
     // the spectrum: one vertical stroke per pixel column where lines are denser than pixels
-    const sp = r.sp, db = k => 10 * Math.log10(Math.max(sp.y[k], 1e-300));
+    const sp = r.spec, db = k => sp.db[k];
     ctx.save(); ctx.beginPath(); ctx.rect(g.L, g.T, W - g.L - g.R, H - g.T - g.B); ctx.clip();
     ctx.strokeStyle = '#1d63c4'; ctx.lineWidth = 1.2; ctx.beginPath();
     let px = null, mn = 0, mx = 0, first = true;
     const flush = () => { if (px == null) return; const a = g.Y(mx), b = g.Y(mn); if (first) { ctx.moveTo(px, a); first = false; } else ctx.lineTo(px, a); if (b - a > 0.5) ctx.lineTo(px, b); };
     for (let k = g.k0; k <= g.k1; k++) {
-      const x = Math.round(g.X(sp.x0 + k * sp.dx)), d = db(k);
+      const x = Math.round(g.X(sp.f0 + k * sp.df)), d = db(k);
       if (x !== px) { flush(); px = x; mn = mx = d; } else { if (d < mn) mn = d; if (d > mx) mx = d; }
     }
     flush(); ctx.stroke();
+    // the detected peaks: small orange marks on their tops
+    ctx.fillStyle = '#e08a00';
+    for (const q of r.peaks) { const x = g.X(q.f), y = g.Y(q.level) - 3; ctx.beginPath(); ctx.moveTo(x - 4, y - 7); ctx.lineTo(x + 4, y - 7); ctx.lineTo(x, y); ctx.closePath(); ctx.fill(); }
     // the modes: green = used, red = off the series, grey = weak or left out
     ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.font = 'bold 11px ' + (col('--sans') || 'sans-serif');
     for (const m of r.modes) {
@@ -230,16 +274,17 @@
     // the pointer
     let info = '';
     if (v.mouse && v.mouse[0] >= g.L && v.mouse[0] <= W - g.R) {
-      const f = g.F(v.mouse[0]), k = Math.round((f - sp.x0) / sp.dx), m = nearMode(v, v.mouse[0]);
+      const f = g.F(v.mouse[0]), k = Math.round((f - sp.f0) / sp.df), m = nearMode(v, v.mouse[0]);
       ctx.strokeStyle = muted; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(Math.round(v.mouse[0]) + 0.5, g.T); ctx.lineTo(Math.round(v.mouse[0]) + 0.5, H - g.B); ctx.stroke();
-      info = m ? `mode ${m.n}: ${m.f.toFixed(4)} Hz – click to ${m.used ? 'leave it out' : 'use it'}` : `${fmt(f, 5)} Hz · ${k >= 0 && k < sp.y.length ? fmt(db(k), 4) : '–'} dB`;
+      info = m ? `mode ${m.n}: ${m.f.toFixed(4)} Hz – click to ${m.used ? 'leave it out' : 'use it'}` : `${fmt(f, 5)} Hz · ${k >= 0 && k < sp.db.length ? fmt(db(k), 4) : '–'} dB`;
     }
     ctx.restore();
     if (v.info) v.info.textContent = info;
   }
 
   /* ---------- the cable data ---------- */
-  function fieldsOf(p) {
+  // seg: the PSD is made from a signal (a new PSD window, or a cable window of the first version)
+  function fieldsOf(p, seg) {
     return [
       { type: 'section', label: 'Cable' },
       { key: 'name', label: 'Name', type: 'text', value: p.name || '', hint: 'e.g. S12 upstream' },
@@ -252,18 +297,19 @@
       { key: 'Tdesign', label: 'Design tension (kN)', type: 'number', value: p.Tdesign || 0, min: 0, hint: '0 = no comparison' },
       { type: 'section', label: 'Tension' },
       { key: 'method', label: 'Tension from', type: 'select', options: METHODS, value: p.method },
-      { type: 'section', label: 'Peak search' },
+      { type: 'section', label: 'Modes' },
+      { type: 'info', label: 'The peaks come from the peak detection of the spectrum window (Signal tools ▸ Peak detection…, or Peak detection… in the cable window); these settings number them as the cable\'s modes.' },
       { key: 'fMin', label: 'Lowest frequency (Hz)', type: 'number', value: p.fMin, min: 0 },
-      { key: 'fMax', label: 'Highest frequency (Hz)', type: 'number', value: p.fMax || 0, min: 0, hint: '0 = 80 % of half the sample rate' },
+      { key: 'fMax', label: 'Highest frequency (Hz)', type: 'number', value: p.fMax || 0, min: 0, hint: '0 = the whole spectrum' },
       { key: 'f1', label: 'First frequency, about (Hz)', type: 'number', value: p.f1 || 0, min: 0, hint: '0 = found automatically' },
       { key: 'maxModes', label: 'Modes, at most', type: 'number', value: p.maxModes, min: 1, max: 40, step: 1 },
-      { key: 'nseg', label: 'Averaged segments', type: 'number', value: p.nseg, min: 1, max: 64, step: 1, hint: 'more: a smoother spectrum, but a coarser resolution' }];
+      ...(seg ? [{ key: 'nseg', label: 'Averaged segments of the PSD', type: 'number', value: p.nseg, min: 1, max: 64, step: 1, hint: 'more: a smoother spectrum, but a coarser resolution' }] : [])];
   }
-  const askData = (p, title) => dialog({ title: title || 'Cable data', intro: 'Units: m, kg/m, MPa, mm², mm⁴, degrees, kN. The tension needs L and m; I adds the bending stiffness, A and θ the sag.', fields: fieldsOf(p),
+  const askData = (p, title, seg) => dialog({ title: title || 'Cable data', intro: 'Units: m, kg/m, MPa, mm², mm⁴, degrees, kN. The tension needs L and m; I adds the bending stiffness, A and θ the sag.', fields: fieldsOf(p, seg),
     validate: x => !(x.L > 0) ? 'Enter the length L' : !(x.m > 0) ? 'Enter the mass per metre m' : null });
-  const clean = v => Object.assign(v, { maxModes: Math.max(1, Math.round(v.maxModes || 10)), nseg: Math.max(1, Math.round(v.nseg || 16)) });
+  const clean = v => Object.assign(v, { maxModes: Math.max(1, Math.round(v.maxModes || 10)) }, v.nseg != null ? { nseg: Math.max(1, Math.round(v.nseg || 16)) } : {});
   async function settings(w) {
-    const p = P(w), v = await askData(p); if (!v) return;
+    const p = P(w), src = S.wins.get(w.parents[0]), v = await askData(p, null, !(src && isSpectrum(src.data))); if (!v) return;
     Object.assign(p, clean(v)); keepData(p);
     w.title = OPS.cable.label(p); w.updateTitle(); APP.queueCompute(w);
   }
@@ -273,7 +319,8 @@
     const r = viewOf(w).res, p = P(w), c = cableOf(p), parent = S.wins.get(w.parents[0]);
     if (!r || !r.methods) throw new Error('No tension yet – enter the cable data first');
     const m = r.methods, info = [
-      ['Cable', p.name || ''], ['Signal', parent ? parent.id + '#' + parent.title : ''], ['Length L (m)', p.L], ['Mass per metre m (kg/m)', p.m], ['E (MPa)', p.E], ['A (mm²)', p.A], ['I (mm⁴)', p.I],
+      ['Cable', p.name || ''], [r.sp ? 'Signal' : 'Spectrum', parent ? parent.id + '#' + parent.title : ''],
+      ['Peak detection', r.sp ? 'standard: ' + methodName(PEAKS()) : methodName(parent && parent.display.peaks)], ['Length L (m)', p.L], ['Mass per metre m (kg/m)', p.m], ['E (MPa)', p.E], ['A (mm²)', p.A], ['I (mm⁴)', p.I],
       ['EI (N·m²)', c.EI], ['Inclination θ (°)', p.theta], ['Design tension (kN)', p.Tdesign || ''], [],
       ['Tension T (kN)', r.T / 1000], ['Method', METHODS.find(x => x[0] === r.key)[1]], ['% of design', p.Tdesign > 0 ? r.T / (p.Tdesign * 10) : ''],
       ['ξ = L√(T/EI)', r.par ? r.par.xi : ''], ['λ² (Irvine)', r.par ? r.par.lambda2 : ''], ['Sag / span', r.par ? r.par.sag : ''], [],
@@ -283,7 +330,8 @@
       ['Taut string', m.string.T / 1000, m.string.sd / m.string.T * 100, m.string.count + ' modes'],
       ['Fit of several modes (hinged ends)', m.fit.T / 1000, m.fit.se / m.fit.T * 100, `EI = ${fmt(m.fit.EI, 4)} N·m², R² = ${fmt(m.fit.r2, 5)}`],
       ['Zui et al. (1996)', m.zui.T / 1000, '', m.zui.key ? `${m.zui.label}, Γ = ${gam(m.zui.gamma)}` : m.zui.note || ''], [],
-      ['Spectrum', `PSD, Hann window, ${r.sp.segments} segments with 50 % overlap, ${r.sp.segLen} samples each, line spacing ${fmt(r.sp.dx, 4)} Hz`]];
+      ['Spectrum', r.sp ? `PSD, Hann window, ${r.sp.segments} segments with 50 % overlap, ${r.sp.segLen} samples each, line spacing ${fmt(r.sp.dx, 4)} Hz`
+        : `${parent ? parent.id + '#' + parent.title : ''}, line spacing ${fmt(r.spec.df, 4)} Hz, ${r.peaks.length} peaks detected`]];
     const modes = [['Mode n', 'f (Hz)', 'f/n (Hz)', 'Peak (dB)', 'T string (kN)', 'T hinged (kN)', 'T clamped (kN)', 'Used'],
       ...r.modes.map(o => [o.n, o.f, o.f / o.n, o.prom, o.Ts / 1000, o.Th / 1000, o.Tf / 1000, o.used ? 'yes' : 'no'])];
     return { info, modes };
@@ -302,25 +350,38 @@
   }
 
   /* ---------- commands ---------- */
+  // from a signal: a PSD window with peak detection, and the cable window under it; from a spectrum: the cable window
   async function newCable(src) {
-    const s = src || S.active;
-    if (!s || s.kind !== '1d' || !s.data || !s.data.y || s.data.x) throw new Error('Select the accelerometer signal first (a time signal window), then choose Cable tension.');
-    const p = Object.assign(defaults(), lastData(), { name: '', use: {} }), v = await askData(p, 'Cable tension – cable data');
+    const s = src || S.active, d = s && s.kind === '1d' && s.data && s.data.y ? s.data : null;
+    const spectrum = isSpectrum(d), signal = !!d && !spectrum && !d.x;
+    if (!spectrum && !signal) throw new Error('Select the accelerometer signal (or its spectrum) first, then choose Cable tension.');
+    const p = Object.assign(defaults(), lastData(), { name: '', use: {} }), v = await askData(p, 'Cable tension – cable data', signal);
     if (!v) return null;
     Object.assign(p, clean(v)); keepData(p);
-    return open(s, p);
+    if (spectrum && !(s.display.peaks && s.display.peaks.on)) APP.setPeaks(s, PEAKS());
+    return open(spectrum ? s : spectrumOf(s, p), p);
+  }
+  // the PSD window between the signal and the cable window: Welch averaging, Hann, in dB, with its peak detection on
+  function spectrumOf(s, p, rect) {
+    const params = Object.assign({}, DSP.svSettings(S.settings.spectral), { mode: 'segments', segmentCount: Math.max(1, Math.round(p.nseg || 16)), segmentOverlap: 50,
+      applyWindow: true, window: 'Hann', subtractMean: true, zeroPadding: '2 x Next power of 2', type: 'Power spectral density (PSD)', dB: true, dBFS: false, xUnit: 'Hz',
+      smooth: false, test: false, customFilter: null, weighting: null, fromFreq: 0, toFreq: 0 });
+    const w = APP.derive(s, 'fft', params, rect ? { rect } : undefined);
+    APP.setPeaks(w, PEAKS());
+    return w;
   }
   function open(s, p, rect) {
     const dw = S.desktop.clientWidth || 1000, dh = S.desktop.clientHeight || 700, rw = Math.min(1060, dw - 20), rh = Math.min(700, dh - 20);
     return APP.derive(s, 'cable', p, { rect: rect || { x: Math.max(0, dw - rw - 10), y: Math.max(0, (dh - rh) / 4), w: rw, h: rh } });
   }
-  // Help ▸ Examples: a stay cable (long: bending hardly matters) and an arch hanger (short and stiff: it does)
+  // Help ▸ Examples: a stay cable (long: bending hardly matters) and an arch hanger (short and stiff: it does); the signal
+  // and its PSD window with the detected peaks on the left, the cable window on the right
   function example(o) {
-    const dw = S.desktop.clientWidth || 1000, dh = S.desktop.clientHeight || 700, left = Math.round(dw * 0.34), p = Object.assign(defaults(), o.p);
+    const dw = S.desktop.clientWidth || 1000, dh = S.desktop.clientHeight || 700, left = Math.round(dw * 0.36), top = Math.round(dh * 0.42), p = Object.assign(defaults(), o.p);
     const y = CM.simulate(Object.assign({ c: cableOf(p), bc: 'fixed', rms: 0.03, noise: 0.002 }, o.sim));
     const s = APP.createWindow({ kind: '1d', title: o.title, source: { type: 'generator' }, data: { y, x0: 0, dx: 1 / o.sim.fs, xUnit: 's', yUnit: 'm/s²' },
-      rect: { x: 0, y: 0, w: left - 4, h: Math.round(dh * 0.45) } });
-    return open(s, p, { x: left, y: 0, w: dw - left, h: dh });
+      rect: { x: 0, y: 0, w: left - 4, h: top - 4 } });
+    return open(spectrumOf(s, p, { x: 0, y: top, w: left - 4, h: dh - top }), p, { x: left, y: 0, w: dw - left, h: dh });
   }
   const stayExample = () => example({ title: 'Stay cable S12 – accelerometer 3.6 m above the deck anchorage',
     p: { name: 'S12 (stay cable, 37 strands)', L: 80, m: 60, E: 195000, A: 5550, I: 110300, theta: 30, Tdesign: 3000, method: 'fixed', fMin: 0.3, maxModes: 10 },
@@ -352,5 +413,5 @@
     return out;
   };
 
-  root.CABLE = { newCable, stayExample, hangerExample, analyse };
+  root.CABLE = { newCable, stayExample, hangerExample, analyse, PEAKS };
 })(window);
