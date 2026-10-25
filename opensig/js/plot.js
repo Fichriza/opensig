@@ -439,10 +439,15 @@
     }
     drawAxes(ctx, r, ax, ay, Object.assign({}, th, { grid: 'rgba(255,255,255,0.08)' }), opt);
     if (opt.colorbar) drawColorbar(ctx, r, th, opt.zRange[0], opt.zRange[1], opt.palette, opt.invert);
-    if (opt.cursor && opt.cursor.x != null) {
-      ctx.strokeStyle = '#fff'; ctx.setLineDash([3, 3]);
+    if (opt.cursor && opt.cursor.x != null) { // the 3D cursor: its time (cyan) and frequency (green), as in the mesh view
       const px = Math.round(ax.toPx(opt.cursor.x)) + 0.5, py = Math.round(ay.toPx(opt.cursor.y)) + 0.5;
-      ctx.beginPath(); ctx.moveTo(px, r.y); ctx.lineTo(px, r.y + r.h); ctx.moveTo(r.x, py); ctx.lineTo(r.x + r.w, py); ctx.stroke(); ctx.setLineDash([]);
+      ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
+      for (const [a, b, c] of [[[px, r.y], [px, r.y + r.h], '#4fd8ff'], [[r.x, py], [r.x + r.w, py], '#6cff8a']]) {
+        ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
+        ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 3.5; ctx.stroke(); ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(px, py, 4, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.restore(); ctx.lineWidth = 1;
     }
     return { rect: r, ax, ay };
   }
@@ -455,7 +460,8 @@
   // most 140 rows and 300 columns (60 × 140 while the view is being turned), each the maximum of the lines it stands for,
   // so no peak is lost. Linear amplitude unless opt.db.
   // opt: {sg, view: {x0, x1 (time), y0, y1 (frequency)}, zRange (dB), zFixed, db, palette, invert, enhanceLow, colorbar,
-  // xLabel, yLabel, yaw, pitch (degrees), zoom, fast (while turning), hover: {i, j} (the marked point)}
+  // xLabel, yLabel, yaw, pitch (degrees), zoom, fast (while turning), hover: {i, j} (the marked point), cursor: {x (time),
+  // y (frequency)} – the 3D cursor, drawn as its two cross sections over the surface where nothing nearer hides them}
   // Returns {rect, pick(px, py) → {i, j, t, f, value} or null}.
   const meshCache = new WeakMap(); // sg → its grid and the last surface picture, so a moving pointer only redraws the box and its marker
   function drawWaterfall(ctx, w, h, th, opt) {
@@ -565,16 +571,19 @@
       for (let j = 0; j < NR - 1; j++) { const q = NV + 2 * NC + 2 * j; tri(q, q + 2, q + 3); tri(q, q + 3, q + 1); }
       const cv = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(Wp, Hp) : Object.assign(document.createElement('canvas'), { width: Wp, height: Hp });
       cv.getContext('2d').putImageData(img, 0, 0);
-      Object.assign(m, { key, cv, id, Z });
+      Object.assign(m, { key, cv, id, Z, zb });
     }
     ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(m.cv, 0, 0, w, h); ctx.restore();
-    // the value under the pointer: the nearest grid point the picture shows there
+    // the value under the pointer: the nearest grid point the picture shows there, at the spectrum and line where the
+    // maximum it stands for lies (a grid point can stand for several of each)
     const pick = (qx, qy) => {
       const xx = Math.floor(qx * S), yy = Math.floor(qy * S);
       if (xx < 0 || yy < 0 || xx >= Wp || yy >= Hp) return null;
       const q = m.id[yy * Wp + xx]; if (q < 0) return null;
       const i = q % NC, j = (q - i) / NC, [ra, rb] = rowAt(j), [ka, kb] = colAt(i);
-      return { i, j, t: rows[Math.min(rows.length - 1, (ra + rb - 1) >> 1)].t, f: sf0 + (ka + kb - 1) / 2 * sg.df, value: grid[j][i], db: !lin };
+      let br = ra, bk = ka;
+      for (let rr = ra; rr < rb && rr < rows.length; rr++) for (let kk = ka; kk < kb; kk++) if (rows[rr].v[kk] > rows[br].v[bk]) { br = rr; bk = kk; }
+      return { i, j, t: rows[br].t, f: sf0 + bk * sg.df, value: grid[j][i], db: !lin };
     };
     // the front edges with their scales, and the level axis on the right side corner
     ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.fillStyle = INK; ctx.font = th.font;
@@ -605,6 +614,34 @@
       line([qx, qy], [qx + 5, qy]); ctx.fillText(fmt(t, zhi - zlo), qx + 8, qy);
     }
     if (!lin) { ctx.textBaseline = 'bottom'; ctx.fillText('dB', zB[0] + 8, zB[1] - 6); }
+    // the 3D cursor: the spectrum at its time (cyan) and the level over time at its frequency (green) as lines on the
+    // surface – each piece drawn only where the depth buffer shows it in front – their crossing, and marks on the scales
+    if (opt.cursor && opt.cursor.x != null) {
+      let r0 = 0; for (let r = 1; r < rows.length; r++) if (Math.abs(rows[r].t - opt.cursor.x) < Math.abs(rows[r0].t - opt.cursor.x)) r0 = r;
+      const kc = Math.round((opt.cursor.y - sf0) / sg.df);
+      let jc = 0; while (jc < NR - 1 && rowAt(jc)[1] <= r0) jc++;
+      let ic = 0; while (ic < NC - 1 && colAt(ic)[1] <= kc) ic++;
+      if (kc >= k0 && kc <= k1 && opt.cursor.x >= ta - 1e-9 && opt.cursor.x <= tb + 1e-9) {
+        const du = 1 / (NC - 1), dv = 1 / (NR - 1), Z = m.Z;
+        const seen = (u, v, z) => { const q = P(u, v, z), xx = Math.floor(q[0] * S), yy = Math.floor(q[1] * S); return xx < 0 || yy < 0 || xx >= Wp || yy >= Hp || depth(u, v) * cp - (z - 0.5) * HZ * sp <= m.zb[yy * Wp + xx] + 0.012; };
+        const profile = (n, at, color) => {
+          ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineCap = 'round';
+          for (let s = 0; s + 1 < n; s++) {
+            const a = at(s), b = at(s + 1);
+            if (seen((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2)) line(P(...a), P(...b));
+          }
+          ctx.lineWidth = 1; ctx.lineCap = 'butt';
+        };
+        profile(NC, i => [i * du, jc * dv, Z[jc][i]], '#4fd8ff');
+        profile(NR, j => [ic * du, j * dv, Z[j][ic]], '#6cff8a');
+        const u = ic * du, v = jc * dv, top = P(u, v, Z[jc][ic]), foot = P(u, v, 0);
+        ctx.strokeStyle = '#fff'; ctx.setLineDash([3, 3]); line(foot, top); ctx.setLineDash([]);
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(top[0], top[1], 4, 0, 7); ctx.fill();
+        const tag = (q, text, color) => { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(q[0], q[1], 3.5, 0, 7); ctx.fill(); ctx.font = 'bold ' + th.font; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(text, q[0], q[1] - 6); ctx.font = th.font; };
+        tag(P(u, vn, 0), fmt(opt.cursor.y, fb - fa) + ' Hz', '#6cff8a');
+        tag(P(un, v, 0), fmt(opt.cursor.x, tb - ta) + ' ' + (opt.xLabel || 's'), '#4fd8ff');
+      }
+    }
     // the marked point: a line down to the floor and its values
     if (opt.hover && opt.hover.i < NC && opt.hover.j < NR) {
       const { i, j } = opt.hover, u = i / (NC - 1), v = j / (NR - 1), top = P(u, v, m.Z[j][i]), foot = P(u, v, 0);

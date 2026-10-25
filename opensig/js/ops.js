@@ -49,18 +49,20 @@
         return { sg, fMin, fMax, t0: d.x0, t1: d.x0 + d.y.length * d.dx, zAuto: [Math.max(lo, hi - 100), hi], xUnit: d.xUnit || 's', yUnit: 'Hz' };
       }
     },
+    // a cross section of a 3D window: the spectrum at one time (axis x) or the level of one frequency over time (axis y);
+    // with follow it moves with the 3D window's cursor (APP.setCursor3 sets at); level 'linear' gives amplitudes, not dB
     slice: {
-      label: p => p.axis === 'x' ? `Spectrum at ${PLOT.fmt(p.at, p.at)} s` : `Level at ${PLOT.fmt(p.at, p.at)} Hz over time`,
+      label: p => (p.follow ? 'Cross section: ' : '') + (p.axis === 'x' ? `spectrum at ${PLOT.fmt(p.at, p.at)} s` : `level at ${PLOT.fmt(p.at, p.at)} Hz over time`),
       kind: '1d', input: 'full',
       compute(win, [d], p) {
         if (!d || !d.sg) throw new Error('Parent must be a 3D window');
-        const rows = d.sg.rows;
+        const rows = d.sg.rows, lin = p.level === 'linear', val = v => lin ? Math.pow(10, v / 20) : v, unit = lin ? '' : 'dB';
         if (p.axis === 'x') {
           let best = rows[0]; for (const r of rows) if (Math.abs(r.t - p.at) < Math.abs(best.t - p.at)) best = r;
-          return sig1(Float64Array.from(best.v), d.sg.f0 || 0, d.sg.df, 'Hz', 'dB');
+          return sig1(Float64Array.from(best.v, val), d.sg.f0 || 0, d.sg.df, 'Hz', unit);
         }
         const k = Math.max(0, Math.min(d.sg.bins - 1, Math.round((p.at - (d.sg.f0 || 0)) / d.sg.df)));
-        return sig1(Float64Array.from(rows, r => r.v[k]), 0, 0, 's', 'dB', { x: Float64Array.from(rows, r => r.t) });
+        return sig1(Float64Array.from(rows, r => val(r.v[k])), 0, 0, d.xUnit || 's', unit, { x: Float64Array.from(rows, r => r.t) });
       }
     },
     fftfilter: {

@@ -217,7 +217,8 @@ generator writes a `.bat` file built on these commands.
   X/Y. `test/fixtures/make_peaks_scipy.py` writes the SciPy reference results checked by `test/dsp.test.js`.
 - **3D tools:** spectrogram/mesh views (the mesh a smoothly shaded, z-buffered surface in a 3D box, linear or dB, turned and
   tilted by dragging, zoomed by the wheel, the point under the pointer read out; time FFT with zero padding, averaging of
-  consecutive spectra and a frequency band), 13 palettes, cursor, slices, max tracking, 3D filter, time-FFT statistics,
+  consecutive spectra and a frequency band), 13 palettes, 3D cursor (Tab, click, arrow keys) with its two cross sections
+  drawn over the surface and cross-section windows that follow it, max slices, max tracking, 3D filter, time-FFT statistics,
   band level over time, contour plot.
 - **Custom displays:** scatter 2D / 2D+colour / 3D (drag to rotate), orbit, polar, Bode, Bode + Nyquist, box, violin,
   box + violin, corner and correlation plots.

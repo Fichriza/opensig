@@ -702,8 +702,16 @@
       if (w.kind === '3d' && w.display.mode === 'mesh' && e.button === 0) { // the mesh view: dragging turns and tilts it
         const sx = e.clientX, sy = e.clientY, yaw = w.display.meshYaw ?? 41, pitch = w.display.meshPitch ?? 22;
         w.canvas.setPointerCapture(e.pointerId); w.meshDragging = true; w.meshHover = null;
-        const mv = ev => { w.display.meshYaw = yaw - (ev.clientX - sx) * 0.4; w.display.meshPitch = Math.max(2, Math.min(88, pitch + (ev.clientY - sy) * 0.3)); requestRender(w); };
-        const up = () => { w.meshDragging = false; w.canvas.removeEventListener('pointermove', mv); w.canvas.removeEventListener('pointerup', up); requestRender(w); };
+        let moved = false;
+        const mv = ev => {
+          if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return;
+          moved = true; w.display.meshYaw = yaw - (ev.clientX - sx) * 0.4; w.display.meshPitch = Math.max(2, Math.min(88, pitch + (ev.clientY - sy) * 0.3)); requestRender(w);
+        };
+        const up = ev => {
+          w.meshDragging = false; w.canvas.removeEventListener('pointermove', mv); w.canvas.removeEventListener('pointerup', up);
+          const hit = !moved && w.lay && w.lay.pick ? w.lay.pick(pt(ev).px, pt(ev).py) : null; // a click puts the 3D cursor on the surface
+          if (hit) setCursor3(w, hit.t, hit.f); else requestRender(w);
+        };
         w.canvas.addEventListener('pointermove', mv); w.canvas.addEventListener('pointerup', up); return;
       }
       if (!w.lay || !w.lay.ax || w.kind === 'instrument') return;
@@ -745,8 +753,8 @@
         w.selection = null; setViewX(w, a, b);
       } else if (!drag.panMode && !moved) {
         const x = w.lay.ax.fromPx(p.px), y = w.lay.ay.fromPx(p.py);
-        if (w.kind === '3d') { w.fixedCursor3 = { x, y }; w.display.crosshair = true; }
-        else w.fixedCursor = x;
+        if (w.kind === '3d') { drag = null; setCursor3(w, x, y); return; }
+        w.fixedCursor = x;
         w.selection = null; requestRender(w);
       } else { w.selection = null; requestRender(w); }
       drag = null;
@@ -773,6 +781,39 @@
       }
       zoom(w, f, w.lay.ax.fromPx(p.px));
     }, { passive: false });
+  }
+
+  /* ---------- The 3D cursor and its cross sections ---------- */
+  // The cursor sits on one spectrum (a time) and one frequency line of the 3D data: Tab switches it on, a click puts it,
+  // the arrow keys move it. Cross-section windows that follow it (slice windows with follow) take its new position;
+  // with the cursor off they keep the last one.
+  function setCursor3(w, x, y) {
+    const sg = w.data && w.data.sg; if (!sg || !sg.rows.length) return;
+    let best = sg.rows[0]; for (const r of sg.rows) if (Math.abs(r.t - x) < Math.abs(best.t - x)) best = r;
+    const k = Math.max(0, Math.min(sg.bins - 1, Math.round((y - (sg.f0 || 0)) / sg.df)));
+    w.fixedCursor3 = { x: best.t, y: (sg.f0 || 0) + k * sg.df }; w.display.crosshair = true;
+    const lin = w.display.mode === 'mesh' && !w.display.meshDb, a = Math.pow(10, best.v[k] / 20);
+    w.stCursor.textContent = `cursor: t ${fmtV(best.t)} ${w.data.xUnit || 's'} · f ${fmtV(w.fixedCursor3.y)} Hz · ${lin ? 'amplitude ' + fmtV(a) : fmtV(best.v[k]) + ' dB'}`;
+    for (const c of w.children) {
+      const cw = S.wins.get(c), p = cw && cw.op && cw.op.params;
+      if (!cw || cw.frozen || cw.op.type !== 'slice' || !p.follow) continue;
+      p.at = p.axis === 'x' ? w.fixedCursor3.x : w.fixedCursor3.y; cw.title = OPS.slice.label(p); cw.updateTitle(); queueCompute(cw);
+    }
+    requestRender(w);
+  }
+  // dt spectra along the time, dk lines along the frequency (ten times as far with Shift)
+  function moveCursor3(w, dt, dk, far) {
+    const sg = w.data && w.data.sg; if (!sg || !sg.rows.length) return;
+    const c = w.fixedCursor3 || { x: (w.view.x0 + w.view.x1) / 2, y: (w.view.y0 + w.view.y1) / 2 }, n = far ? 10 : 1, rows = sg.rows;
+    let j = 0; for (let i = 1; i < rows.length; i++) if (Math.abs(rows[i].t - c.x) < Math.abs(rows[j].t - c.x)) j = i;
+    j = Math.max(0, Math.min(rows.length - 1, j + dt * n));
+    const k = Math.max(0, Math.min(sg.bins - 1, Math.round((c.y - (sg.f0 || 0)) / sg.df) + dk * n));
+    setCursor3(w, rows[j].t, (sg.f0 || 0) + k * sg.df);
+  }
+  function toggleCursor3(w) {
+    if (w.display.crosshair) { w.display.crosshair = false; w.stCursor.textContent = ''; requestRender(w); return; }
+    const c = w.fixedCursor3 || { x: (w.view.x0 + w.view.x1) / 2, y: (w.view.y0 + w.view.y1) / 2 };
+    setCursor3(w, c.x, c.y);
   }
 
   // the mesh view's point under the pointer: marked in the view, with its time, frequency and level in the status bar
@@ -1254,6 +1295,7 @@
     setViewX, resetView, zoom, pan, fitX, extentX, arrange, organizeSoon, toggleMax, openSignal, openXY, copyVisible, replaceSourceData,
     playSound, playSilent, stopPlayback, startAcquisition, stopAcquisition, restartAcquisition, resetAcquisition, afterData, emit, serialize, loadWorkspace, toolFromWindow, applyTool,
     saveSettings, applyTheme, readTheme, isDark, toggleDark, setWindowStyle, WINDOW_STYLES, valueAt, related, peaksOf, setPeaks, onChange: f => S.listeners.add(f), DEFAULT_SETTINGS, isOpen,
+    setCursor3, moveCursor3, toggleCursor3,
     tabs: { init: initTabs, list: () => tabs, current: () => curTab, add: addTab, select: selectTab, close: closeTab, rename: renameTab, step: stepTab,
       forFile: tabForFile, serialize: serializeTabs, load: loadTabs } };
 })(window);

@@ -728,18 +728,27 @@
   }
 
   /* ---------- 3D tools ---------- */
-  function extractCursor(axis, atMax) {
-    const w = need('3d'), sg = w.data.sg;
-    let at;
+  // a cross section of the active 3D window: at the 3D cursor it follows the cursor (and switches it on); at the maximum it
+  // stays there. Amplitudes when the mesh shows them, dB otherwise.
+  function extractCursor(axis, atMax, rect, win) {
+    const w = win || need('3d'), sg = w.data.sg, level = w.display.mode === 'mesh' && !w.display.meshDb ? 'linear' : 'dB';
     if (atMax) {
       let best = -Infinity, bt = 0, bk = 0;
       for (const r of sg.rows) for (let k = 1; k < sg.bins; k++) if (r.v[k] > best) { best = r.v[k]; bt = r.t; bk = k; }
-      at = axis === 'x' ? bt : (sg.f0 || 0) + bk * sg.df;
-    } else {
-      const c = w.fixedCursor3 || { x: (w.view.x0 + w.view.x1) / 2, y: (w.view.y0 + w.view.y1) / 2 };
-      at = axis === 'x' ? c.x : c.y;
+      return APP.derive(w, 'slice', { axis, at: axis === 'x' ? bt : (sg.f0 || 0) + bk * sg.df, level });
     }
-    APP.derive(w, 'slice', { axis, at });
+    if (!w.display.crosshair) APP.toggleCursor3(w);
+    const c = w.fixedCursor3;
+    return APP.derive(w, 'slice', { axis, at: axis === 'x' ? c.x : c.y, follow: true, level }, rect ? { rect } : undefined);
+  }
+  // both cross sections at the cursor, side by side under the 3D window (or wherever there is room)
+  function crossSections() {
+    const w = need('3d'), r = w.el.getBoundingClientRect(), d = S.desktop.getBoundingClientRect();
+    const x = r.left - d.left, y = r.bottom - d.top + 4, hw = Math.max(260, Math.round(r.width / 2) - 2), hh = Math.max(180, Math.min(280, d.height - y - 4));
+    const fits = y + 180 <= d.height;
+    extractCursor('x', false, fits ? { x, y, w: hw, h: hh } : null, w);
+    extractCursor('y', false, fits ? { x: x + hw + 4, y, w: hw, h: hh } : null, w);
+    APP.activate(w);
   }
 
   /* ---------- Examples (built programmatically – no bundled media) ---------- */
@@ -952,11 +961,12 @@
       { label: 'Spectrogram view', key: 'F3', run: () => { const w = need('3d'); w.display.mode = 'spectrogram'; APP.requestRender(w); }, checked: () => has3D() && S.active.display.mode === 'spectrogram', en: has3D },
       { label: 'Mesh view', key: 'F2', run: () => { const w = need('3d'); w.display.mode = 'mesh'; APP.requestRender(w); }, checked: () => has3D() && S.active.display.mode === 'mesh', en: has3D },
       { label: 'Mesh level in dB', run: () => { const w = need('3d'); w.display.meshDb = !w.display.meshDb; w.display.mode = 'mesh'; APP.requestRender(w); }, checked: () => has3D() && !!S.active.display.meshDb, en: has3D },
-      { label: 'Cursor', key: 'Tab', run: () => { const w = need('3d'); w.display.crosshair = !w.display.crosshair; if (!w.fixedCursor3) w.fixedCursor3 = { x: (w.view.x0 + w.view.x1) / 2, y: (w.view.y0 + w.view.y1) / 2 }; APP.requestRender(w); }, checked: () => has3D() && S.active.display.crosshair, en: has3D },
+      { label: 'Cursor', key: 'Tab', run: () => APP.toggleCursor3(need('3d')), checked: () => has3D() && S.active.display.crosshair, en: has3D },
       { label: 'Adjust Z-axis…', run: axesDialog, en: has3D },
       '-',
-      { label: 'Extract X-cursor (spectrum at cursor time)', run: () => extractCursor('x'), en: has3D },
-      { label: 'Extract Y-cursor (level over time at cursor frequency)', run: () => extractCursor('y'), en: has3D },
+      { label: 'Cross sections at the cursor', run: crossSections, en: has3D },
+      { label: 'Cross section at cursor time (spectrum)', run: () => extractCursor('x'), en: has3D },
+      { label: 'Cross section at cursor frequency (level over time)', run: () => extractCursor('y'), en: has3D },
       { label: 'Extract slice from max X position', run: () => extractCursor('x', true), en: has3D },
       { label: 'Extract slice from max Y position', run: () => extractCursor('y', true), en: has3D },
       '-',
@@ -1052,7 +1062,7 @@
     let items;
     if (w.kind === 'instrument') items = pick([['Edit', 'Properties…'], ['Instruments', 'Statistics (show as…)'], '-', ['System control', 'Link window to parent…'], ['System control', 'Unlink window from parent'], ['Edit', 'Save picture as PNG…']]);
     else if (w.kind === '3d') items = pick([['3D tools', 'Spectrogram view'], ['3D tools', 'Mesh view'], ['3D tools', 'Palette'], ['3D tools', 'Adjust Z-axis…'], ['3D tools', 'Show colour map'], '-',
-      ['3D tools', 'Extract X-cursor (spectrum at cursor time)'], ['3D tools', 'Extract Y-cursor (level over time at cursor frequency)'], '-', ['Edit', 'Properties…'], ['Edit', 'Save picture as PNG…'], ['System control', 'Unlink window from parent']]);
+      ['3D tools', 'Cross sections at the cursor'], ['3D tools', 'Cross section at cursor time (spectrum)'], ['3D tools', 'Cross section at cursor frequency (level over time)'], '-', ['Edit', 'Properties…'], ['Edit', 'Save picture as PNG…'], ['System control', 'Unlink window from parent']]);
     else items = pick([['Signal tools', 'FFT spectrum analysis'], ['3D tools', 'Spectrogram…'], ['Signal tools', 'FFT filter…'], ['Instruments', 'RMS'], ['Instruments', 'Maximum (with marker)'], ['Signal tools', 'Peak detection…'], '-',
       ['Edit', 'Display style'], ['Edit', 'Axes settings…'], ['Edit', 'Open selection in new window'], ['Play & navigate', 'Play visible segment only (with sound)'], '-',
       ['Edit', 'Properties…'], ['File', 'Save signal as…'], ['Edit', 'Save picture as PNG…'], ['System control', 'Unlink window from parent']]);
@@ -1130,14 +1140,18 @@
       const f = map[/^Key[A-Z]$/.test(e.code || '') ? e.code.slice(3).toLowerCase() : k.length === 1 ? k.toLowerCase() : k]; if (f) return run(f);
     }
     if (ctrl || e.altKey) return;
+    const cur3 = w && w.kind === '3d' && w.display.crosshair && w.data && w.data.sg; // the 3D cursor is on: the arrows move it
     const map = { F1: () => root.HELP ? root.HELP.context() : helpDialog(), F12: settingsDialog, F2: () => { const x = need('3d'); x.display.mode = 'mesh'; APP.requestRender(x); }, F3: () => { const x = need('3d'); x.display.mode = 'spectrogram'; APP.requestRender(x); },
       F5: () => APP.playSilent(need('1d')), F6: () => APP.playSound(need('time'), 'cursor'), F7: () => APP.stopPlayback(),
       Home: () => { const x = need(); const s = x.view.x1 - x.view.x0, [a] = APP.extentX(x); APP.setViewX(x, a, a + s); },
       End: () => { const x = need(); const s = x.view.x1 - x.view.x0, [, b] = APP.extentX(x); APP.setViewX(x, b - s, b); },
-      ArrowRight: () => APP.pan(need(), S.settings.step / 100), ArrowLeft: () => APP.pan(need(), -S.settings.step / 100),
+      // with a 3D window's cursor on, the arrows move it (one spectrum or frequency line, ten with Shift); else they pan
+      ArrowRight: () => cur3 ? APP.moveCursor3(w, 1, 0, e.shiftKey) : APP.pan(need(), S.settings.step / 100),
+      ArrowLeft: () => cur3 ? APP.moveCursor3(w, -1, 0, e.shiftKey) : APP.pan(need(), -S.settings.step / 100),
+      ...(cur3 ? { ArrowUp: () => APP.moveCursor3(w, 0, 1, e.shiftKey), ArrowDown: () => APP.moveCursor3(w, 0, -1, e.shiftKey) } : {}),
       '+': () => APP.zoom(need(), 0.5), '=': () => APP.zoom(need(), 0.5), '-': () => APP.zoom(need(), 2),
       Delete: () => w && APP.closeWindow(w),
-      Tab: () => { const x = need('3d'); x.display.crosshair = !x.display.crosshair; if (!x.fixedCursor3) x.fixedCursor3 = { x: (x.view.x0 + x.view.x1) / 2, y: (x.view.y0 + x.view.y1) / 2 }; APP.requestRender(x); } };
+      Tab: () => APP.toggleCursor3(need('3d')) };
     if (k === 'Tab' && !(w && w.kind === '3d')) return;
     const f = map[k]; if (f) run(f);
   }
