@@ -130,6 +130,8 @@ static class Automation
 class MainForm : Form
 {
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+    [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr handle);
+    Icon exeIcon, appIcon;                                // the exe's icon, and the one chosen in Application settings
     // dark Windows title bar (attribute 20 on Windows 10 2004+ and 11, 19 on earlier Windows 10 builds)
     void SetDarkTitleBar(bool dark)
     {
@@ -536,6 +538,16 @@ class MainForm : Form
             case "log": Log("page: " + S(m, "text")); Reply(id, true, true, null); break;
             case "startArgs": Reply(id, true, Program.StartArgs, null); break;
             case "darkTitleBar": SetDarkTitleBar(B(m, "dark")); Reply(id, true, true, null); break;
+            case "setIcon": // window and taskbar icon (Application settings ▸ App icon): a PNG, or reset to the exe's icon
+                {
+                    if (exeIcon == null) exeIcon = Icon;
+                    Icon old = appIcon; appIcon = null;
+                    if (B(m, "reset")) Icon = exeIcon;
+                    else using (MemoryStream ms = new MemoryStream(Convert.FromBase64String(S(m, "png")))) using (Bitmap bmp = new Bitmap(ms)) { appIcon = Icon.FromHandle(bmp.GetHicon()); Icon = appIcon; }
+                    if (old != null) DestroyIcon(old.Handle);
+                    Reply(id, true, true, null);
+                    break;
+                }
             case "setTitle": Text = S(m, "title").Length > 0 ? S(m, "title") : "OpenSig"; Reply(id, true, true, null); break;
             case "show": WindowState = FormWindowState.Normal; Show(); Activate(); Reply(id, true, true, null); break;
             case "hide": WindowState = FormWindowState.Minimized; Reply(id, true, true, null); break;

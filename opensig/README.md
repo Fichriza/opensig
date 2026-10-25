@@ -246,7 +246,9 @@ generator writes a `.bat` file built on these commands.
   OpenSig; their menu and toolbar pictures are drawn from OpenSig's own menus.
 - **Look:** classic style in four window styles – Standard (light blue), Classic grey (1990s 3D bevels, teal desktop),
   Classic blue (2000s rounded blue captions, beige panels) and Glass (late-2000s frosted frames) – chosen in Window ▸
-  Window style or Application settings (`data-skin`, light mode only), with a dark mode – Window ▸ Dark mode (Ctrl+Shift+D), the
+  Window style or Application settings (`data-skin`, light mode only); seven app icons (`js/logos.js`: Application
+  settings ▸ App icon, shown on the welcome screen, in About, as the browser tab icon and as the desktop app's window
+  and taskbar icon through the `setIcon` host call); with a dark mode – Window ▸ Dark mode (Ctrl+Shift+D), the
   moon button, or Application settings ▸ Dark mode: Off / On / Follow Windows. The desktop app darkens its Windows
   title bar too.
 

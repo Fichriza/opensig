@@ -74,7 +74,16 @@ button { font: inherit; color: inherit; }
 /* Welcome */
 #welcome { position: absolute; inset: 0; margin: auto; width: min(560px, calc(100% - 32px)); height: fit-content; max-height: calc(100% - 32px); overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 24px 28px; box-shadow: var(--shadow); }
 #welcome[hidden] { display: none; }
-#welcome h1 { margin: 0 0 6px; font-size: 22px; }
+#welcome h1 { margin: 0 0 6px; font-size: 22px; display: flex; align-items: center; gap: 10px; }
+/* app icon (js/logos.js): welcome screen, About box, and the picker in Application settings */
+.app-logo, .about-logo svg { display: inline-flex; flex: none; }
+.about-logo { display: flex; align-items: center; gap: 12px; font-size: 18px; }
+.dlg-radio.dlg-icons { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+.dlg-icons label { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 69px; padding: 6px 1px 4px; border: 1px solid transparent; border-radius: 4px; font-size: 11px; text-align: center; cursor: pointer; }
+.dlg-icons label:hover { background: var(--panel-2); }
+.dlg-icons label:has(input:checked) { border-color: var(--accent); background: var(--selection); }
+.dlg-icons input { order: 2; margin: 0; }
+.icon-choice { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 #welcome h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 20px 0 6px; }
 #welcome .lede { margin: 0 0 16px; color: var(--muted); text-wrap: pretty; }
 .welcome-actions { display: flex; flex-wrap: wrap; gap: 8px; }

@@ -76,6 +76,8 @@ ${SEE('zoom', 'cursors', 'harmonic')}`),
 <tr><td>Classic blue (2000s)</td><td>Rounded blue captions, beige panels and buttons with an orange glow</td></tr>
 <tr><td>Glass (late 2000s)</td><td>Frosted light-blue frames, gradient buttons and a deep-blue desktop</td></tr></table>
 <p>The graphs look the same in every style. Dark mode keeps the layout with dark colours, and uses them whichever window style is chosen.</p>
+<h2>App icon</h2>
+<p>The <b>App icon</b> setting in ${P('File', 'Application settings…')} picks the OpenSig logo: <i>Blue wave</i> (the default), <i>Oscilloscope</i>, <i>Spectrum</i>, <i>Spectrogram</i>, <i>Mode shape</i>, <i>Retro grey</i> or <i>Black and white</i>. It appears on the welcome screen, in ${P('Help', 'About OpenSig…')} and in the browser tab, and in the desktop app as the window and taskbar icon. The icon of the program file itself – in the Start menu, on shortcuts and in the Mac Dock – stays the blue wave.</p>
 <p>Dark mode can be switched with ${P('Window', 'Dark mode')} (${K('Ctrl', 'Shift', 'D')}), the moon button on the toolbar, or in ${P('File', 'Application settings…')}, where it can also follow Windows. The desktop app darkens its title bar as well.</p>
 <p>The colours, grid and axes of single graphs can be changed further with ${L('graphstyle')}.</p>`),
       T('about', 'About OpenSig', ['version', 'license', 'privacy', 'clean-room'], `
@@ -656,7 +658,7 @@ ${MENU('Signal tools', 'Use custom tool')}`),
 
     B('settingsbook', 'Settings', '', [
       T('settings', 'Application settings', ['settings', 'preferences', 'options', 'number format', 'auto-save', 'playback device', 'F12'], `
-<p>${P('File', 'Application settings…')} (${K('Ctrl', ',')}; ${K('F12')} in the desktop app) sets the window style and dark mode, default display options, the number format for exports and the clipboard, auto-saving and restoring the workspace, and the playback device. ${P('File', 'Application settings – advanced…')} holds the rarely changed options.</p>
+<p>${P('File', 'Application settings…')} (${K('Ctrl', ',')}; ${K('F12')} in the desktop app) sets the window style, app icon and dark mode, default display options, the number format for exports and the clipboard, auto-saving and restoring the workspace, and the playback device. ${P('File', 'Application settings – advanced…')} holds the rarely changed options.</p>
 <p>${P('Signal tools', 'Spectral analysis defaults…')} sets the parameters used by ${K('Ctrl', 'F')} and the other quick FFT commands.</p>`)
     ])
   ];

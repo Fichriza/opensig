@@ -69,7 +69,7 @@
           } else if (f.type === 'textarea') {
             input = h('textarea', { id, rows: f.rows || 4, spellcheck: 'false' }); input.value = f.value ?? '';
           } else if (f.type === 'radio') {
-            input = h('div', { class: 'dlg-radio', role: 'radiogroup' }, ...(f.options || []).map(op => { const [val, lab] = Array.isArray(op) ? op : [op, op]; return h('label', {}, h('input', { type: 'radio', name: id, value: val, checked: String(val) === String(f.value) }), ' ', lab); }));
+            input = h('div', { class: 'dlg-radio' + (f.cls ? ' ' + f.cls : ''), role: 'radiogroup' }, ...(f.options || []).map(op => { const [val, lab] = Array.isArray(op) ? op : [op, op]; return h('label', {}, h('input', { type: 'radio', name: id, value: val, checked: String(val) === String(f.value) }), ' ', lab); }));
             input._radio = true;
           } else {
             input = h('input', { id, type: f.type === 'number' ? 'number' : f.type === 'color' ? 'color' : 'text', step: f.step ?? 'any', min: f.min, max: f.max });
@@ -697,6 +697,8 @@
     const v = await dialog({ title: 'Application settings', fields: [
       { type: 'section', label: 'Display' },
       { key: 'windowStyle', label: 'Window style', type: 'select', options: APP.WINDOW_STYLES, value: s.windowStyle || 'standard', hint: 'also Window ▸ Window style; in dark mode every style uses the dark colours' },
+      { key: 'appIcon', label: 'App icon', type: 'radio', cls: 'dlg-icons', wide: true, value: s.appIcon || 'classic', options: root.LOGOS ? root.LOGOS.options() : [['classic', 'Blue wave']],
+        hint: 'on the welcome screen, in the About box and the browser tab, and – desktop app – as the window and taskbar icon' },
       { key: 'darkMode', label: 'Dark mode', type: 'select', options: [['off', 'Off'], ['on', 'On'], ['system', 'Follow Windows']], value: s.darkMode || 'off', hint: 'also Window ▸ Dark mode (Ctrl+Shift+D)' },
       { key: 'cursorAllWindows', label: 'Display signal cursor simultaneously in all related windows', type: 'check', value: s.cursorAllWindows },
       { key: 'logXSpectra', label: 'Use log X-axis as default for new spectral windows', type: 'check', value: s.logXSpectra },
@@ -711,7 +713,7 @@
       { key: 'playLoop', label: 'Play in loop', type: 'check', value: s.playLoop }],
       extra: [{ label: 'Spectral analysis defaults…', run: () => spectralDefaults() }] });
     if (!v) return;
-    Object.assign(s, v, { digits: Math.round(v.digits) || 6 }); APP.saveSettings(); APP.applyTheme();
+    Object.assign(s, v, { digits: Math.round(v.digits) || 6 }); APP.saveSettings(); APP.applyTheme(); if (root.LOGOS) root.LOGOS.apply();
   }
 
   /* ---------- 3D tools ---------- */
@@ -1078,6 +1080,7 @@
   }
   function aboutDialog() {
     return dialog({ title: 'About OpenSig', fields: [
+      { type: 'info', label: h('div', { class: 'about-logo' }, root.LOGOS ? root.LOGOS.node(S.settings.appIcon, 56) : null, h('b', {}, 'OpenSig')) },
       { type: 'info', label: 'OpenSig is a browser-based signal analysis workbench: linked windows, FFT/PSD with 15 windows and Welch averaging, spectrograms, FFT & IIR filters, octave analysis with A/C weighting, 30+ instruments, a signal calculator, live audio acquisition, playback, workspaces and reusable tools.' },
       { type: 'info', label: 'It is an independent, clean-room program: it contains no code, assets, help text or licensing logic from any other product, and it is not affiliated with or endorsed by any other software vendor.' },
       { type: 'info', label: 'Everything runs locally in your browser; no data leaves your computer.' }], ok: 'Close', cancel: 'Back' });

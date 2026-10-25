@@ -36,6 +36,11 @@ are using.*
 *Window ▸ Window style: Standard (top left), Classic grey from the 1990s (top right), Classic blue from the 2000s
 (bottom left) and Glass from the late 2000s (bottom right). The graphs look the same in every style.*
 
+### App icons
+![The seven app icons](docs/screenshots/app-icons.png)
+*File ▸ Application settings ▸ App icon: the logo on the welcome screen, in About and in the browser tab, and – in the
+Windows desktop app – the window and taskbar icon.*
+
 ### Dark mode
 ![Harmonic distortion of a clipped sine in dark mode, with THD gauge and SNR](docs/screenshots/dark-mode.png)
 *Harmonic distortion of a clipped sine: its spectrum, a THD gauge and the signal-to-noise ratio, in dark mode.*
@@ -59,7 +64,7 @@ are using.*
   writing), raw binary, MATLAB, NumPy, EDF / BDF / GDF, HDF5, UFF / UNV; live audio input; UDP / TCP and serial input
   in the desktop app; export to CSV, WAV, PNG and Excel.
 - **A complete user manual** inside the app, and a classic Windows look in four window styles – standard, 1990s grey,
-  2000s blue and glass – with a dark mode.
+  2000s blue and glass – with a dark mode, and a choice of seven app icons.
 
 The detailed feature list, file formats, automation commands and technical notes are in
 [`opensig/README.md`](opensig/README.md).

@@ -10,7 +10,7 @@
     palette: 'Jet', colorbar: true, freqDown: false, enhanceLow: false,
     step: 30, numPeaks: 5, fontSize: 11, audioOut: '', numFormat: { mode: 'sig', digits: 7 }, instFormat: { mode: 'sig', digits: 6 }, autosaveMin: 0, restoreLast: false, bandMarkers: true, wavChunk: true, wavFileDate: false,
     cursorAllWindows: true, logXSpectra: false, logYSpectra: false,
-    playLoop: false, autoVolume: true, digits: 6, darkMode: 'off', windowStyle: 'standard'
+    playLoop: false, autoVolume: true, digits: 6, darkMode: 'off', windowStyle: 'standard', appIcon: 'classic'
   });
   function loadSettings() {
     const s = DEFAULT_SETTINGS();
