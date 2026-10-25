@@ -545,6 +545,14 @@ li.sel > .hv-row .hv-lbl { background: var(--hv-sel); border-color: var(--hv-sel
 .cab-tab tr.off td { color: var(--geo-muted); }
 .cab-modes td:first-child, .cab-modes th:first-child { width: 28px; }
 .cab-modes .cab-note { white-space: nowrap; }
+/* Video windows (video.js): the bar above, the picture filling the rest */
+.vid { flex-direction: column; }
+.vid-box { flex: 1; min-height: 0; position: relative; background: #000; }
+.vid-box video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+.vid-msg { position: absolute; left: 0; right: 0; top: 42%; text-align: center; color: #ddd; padding: 0 12px; }
+.vid-msg:empty { display: none; }
+.vid-off { width: 72px; }
+.vid-snd { margin-left: 8px; display: inline-flex; align-items: center; gap: 3px; }
 .geo-btn.geo-run:hover { background: #157526; border-color: #0d5a1b; }
 .geo-chip.on { background: #c00; border-color: #c00; color: #fff; }
 .geo-modes tr:not(:first-child) { cursor: pointer; }

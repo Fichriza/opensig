@@ -116,6 +116,21 @@ ${SEE('saving', 'generator', 'followcsv')}`),
 <p>${P('Data acquisition', 'Stop following CSV files')} stops; closing the windows of a file stops following it too. The windows keep the data read so far.</p>
 ${NOTE('Following works in the Windows desktop app and in Chrome or Edge. Safari and the Mac app cannot read a file again once it is open. A time column must hold seconds as numbers.')}
 ${SEE('opening', 'logging')}`),
+      T('video', 'Videos in step with signals', ['video', 'movie', 'MP4', 'WebM', 'MOV', 'camera', 'synchronize', 'sync', 'offset', 'frame', 'playback', 'attach video'], `
+<p>${P('File', 'Open video…')} – or a video file dropped on the desktop – opens a video in a <b>video window</b> and its sound as signal windows, one per channel. The video window is linked to the first sound channel and plays in step with it, so you can see what made a sound or a vibration while you analyse it.</p>
+<h2>How the video follows its signal</h2>
+<ul><li>While the signal plays with sound (${K('Alt', 'F6')}, ${K('F6')} from the cursor, ${K('Ctrl', 'Alt', 'F6')} the visible part), the video plays along – without its own sound, so you hear the signal only.</li>
+<li>While the signal plays without sound (${K('F5')}), the video shows the frame at the end of the visible part as it steps through the record.</li>
+<li>Otherwise it shows the frame at the signal's cursor (click in the signal), or at the start of the visible part – zoom or scroll the signal and the picture follows.</li>
+<li>Played with its own controls (▶, the time bar), the video draws a red playhead over the signal; where you stop it or move it, it puts the signal's cursor – press ${K('F6')} to hear the signal from there.</li></ul>
+<h2>The video window</h2>
+<ul><li><b>Open video…</b> – another file in this window.</li>
+<li><b>Sync with signal…</b> – any time signal can lead the video: the sound of the video, or an accelerometer, strain gauge or microphone recorded beside a camera. ${P('Attach a video…')} in a signal window's menu opens a video synced with that signal.</li>
+<li><b>Offset</b> – the signal time at which the video starts. A camera started 2.5 s after the recorder has an offset of 2.5; a negative offset means the video started first.</li>
+<li><b>◀ ▶</b> – one frame back or on (1/30 s); <b>Sound</b> – the video's own sound when it plays by itself.</li></ul>
+<h2>Files</h2>
+<p>A video plays when OpenSig's browser engine can decode it: MP4 (H.264 or AV1 with AAC), WebM (VP8, VP9 or AV1 with Opus or Vorbis), Ogg, and MOV with H.264; on a Mac, MP4 and MOV play best. The desktop app streams the file from the disk, so its size does not matter; opening its sound reads the whole file (above 400 MB OpenSig asks first). A workspace keeps the video window with its offset; the desktop app opens the file again from where it was, in a browser the window asks for it.</p>
+${SEE('opening', 'play', 'linked')}`),
       T('generator', 'Signal Generator', ['generate', 'sine', 'noise', 'sweep', 'chirp', 'test signal'], `
 <p>${P('Signal tools', 'Signal generator…')} creates test signals. Choose the signal type, the sampling rate, the length in seconds and the minimum and maximum amplitude.</p>
 <ul><li><b>Periodic:</b> sine, cosine, square, triangular and sawtooth, with a frequency.</li>
@@ -914,7 +929,7 @@ ${MENU('Signal tools', 'Use custom tool')}`),
     averager: 'averager', octave: 'octave', filterbank: 'octave', srs: 'srs', overtime: 'overtime', calc: 'calculator', instrument: 'instruments',
     cepstrum: 'zerocross', zerocross: 'zerocross', wavedenoise: 'wavelet', tacho: 'tacho', cwt: 'cwt', align: 'align', report: 'ai', chart: 'customdisplays',
     script: 'scripts', scriptsource: 'scripts', scriptinst: 'scripts', scriptinstsource: 'scripts', scriptdisplay: 'customdisplays', tfftstats: 'timefft',
-    track3d: 'cursor3d', filter3d: 'cursor3d', slice: 'cursor3d', sum3d: 'specinst', extract: 'zoom', peaks: 'peaks', edit: 'editnode', geometry: 'geometry', cable: 'cable' };
+    track3d: 'cursor3d', filter3d: 'cursor3d', slice: 'cursor3d', sum3d: 'specinst', extract: 'zoom', peaks: 'peaks', edit: 'editnode', geometry: 'geometry', cable: 'cable', video: 'video' };
 
   // the keyboard table of the "Keyboard and mouse" topic
   const keys = [['F1', 'Help for the active window'], ['Ctrl+O / Ctrl+S', 'Open / save signal'], ['Ctrl+I / Ctrl+L', 'Save / load workspace (desktop: Ctrl+W loads)'], ['Ctrl+Tab / Ctrl+Shift+Tab', 'Next / previous workspace tab (desktop app)'],

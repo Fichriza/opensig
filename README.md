@@ -70,6 +70,8 @@ Windows desktop app – the window and taskbar icon.*
   bending and sag parameters and the ratio to the design tension.
 - **Workspaces** – every workspace in its own tab, saved with or without data and restored at the next start; custom
   tools, scripts, overlays and stacked views.
+- **Videos in step with signals** – open a video (MP4, WebM, MOV …) and its sound, or attach a camera's video to
+  any recording with an offset: it plays, scrubs and steps with the signal.
 - **Data in and out** – WAV, FLAC, MP3, OGG, AIFF, M4A, CSV (millions of rows, and files that another program keeps
   writing), raw binary, MATLAB, NumPy, EDF / BDF / GDF, HDF5, UFF / UNV; live audio input; UDP / TCP and serial input
   in the desktop app; export to CSV, WAV, PNG and Excel.

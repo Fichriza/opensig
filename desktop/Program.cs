@@ -148,6 +148,7 @@ class MainForm : Form
     readonly Dictionary<int, TcpListener> tcpServers = new Dictionary<int, TcpListener>();
     readonly Dictionary<string, TcpClient> tcpClients = new Dictionary<string, TcpClient>();
     readonly Dictionary<string, SerialPort> serial = new Dictionary<string, SerialPort>();
+    readonly Dictionary<string, string> media = new Dictionary<string, string>(); // video files served from disk: token → path
     bool pageReady;
     readonly object logLock = new object();
     void Log(string msg)
@@ -226,6 +227,7 @@ class MainForm : Form
             c.WebResourceRequested += delegate(object s, CoreWebView2WebResourceRequestedEventArgs e)
             {
                 string rel = Uri.UnescapeDataString(new Uri(e.Request.Uri).AbsolutePath).TrimStart('/');
+                if (rel.StartsWith("__media/")) { e.Response = MediaResponse(env, rel, e.Request); return; }
                 if (rel.Length == 0) rel = "index.html";
                 string full = Path.GetFullPath(Path.Combine(webRoot, rel.Replace('/', Path.DirectorySeparatorChar)));
                 if (!full.StartsWith(webRoot, StringComparison.OrdinalIgnoreCase) || !File.Exists(full))
@@ -263,6 +265,32 @@ class MainForm : Form
     }
 
     // ---------- messaging ----------
+    // a registered video file (mediaUrl): whole, or the byte range the video player asks for
+    CoreWebView2WebResourceResponse MediaResponse(CoreWebView2Environment env, string rel, CoreWebView2WebResourceRequest req)
+    {
+        string[] parts = rel.Split('/');
+        string path = null;
+        bool known;
+        lock (media) known = parts.Length > 1 && media.TryGetValue(parts[1], out path);
+        if (!known || !File.Exists(path)) return env.CreateWebResourceResponse(null, 404, "Not Found", "Content-Type: text/plain");
+        string ext = Path.GetExtension(path).ToLowerInvariant();
+        string mime = ext == ".webm" ? "video/webm" : ext == ".ogv" ? "video/ogg" : ext == ".mov" ? "video/quicktime" : ext == ".mkv" ? "video/x-matroska" : "video/mp4";
+        long size = new FileInfo(path).Length, start = 0, end = size - 1;
+        string range = null;
+        try { if (req.Headers.Contains("Range")) range = req.Headers.GetHeader("Range"); } catch (Exception) { range = null; }
+        FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (range == null || !range.StartsWith("bytes="))
+            return env.CreateWebResourceResponse(fs, 200, "OK", "Content-Type: " + mime + "\r\nAccept-Ranges: bytes\r\nContent-Length: " + size);
+        string[] se = range.Substring(6).Split(',')[0].Split('-');
+        if (se[0].Trim().Length > 0) { start = long.Parse(se[0].Trim()); if (se.Length > 1 && se[1].Trim().Length > 0) end = Math.Min(size - 1, long.Parse(se[1].Trim())); }
+        else if (se.Length > 1 && se[1].Trim().Length > 0) start = Math.Max(0, size - long.Parse(se[1].Trim()));
+        if (start >= size || end < start) { fs.Dispose(); return env.CreateWebResourceResponse(null, 416, "Range Not Satisfiable", "Content-Range: bytes */" + size); }
+        fs.Seek(start, SeekOrigin.Begin);
+        long len = end - start + 1;
+        return env.CreateWebResourceResponse(new RangeStream(fs, len), 206, "Partial Content",
+            "Content-Type: " + mime + "\r\nAccept-Ranges: bytes\r\nContent-Range: bytes " + start + "-" + end + "/" + size + "\r\nContent-Length: " + len);
+    }
+
     void Post(Dictionary<string, object> m)
     {
         string s = json.Serialize(m);
@@ -313,6 +341,16 @@ class MainForm : Form
                     break;
                 }
             case "readFile": Reply(id, true, FileEntry(S(m, "path")), null); break;
+            case "mediaUrl": // a video file streamed from disk (in byte ranges, so it can seek) instead of read whole
+                {
+                    string path = S(m, "path");
+                    if (!File.Exists(path)) { Reply(id, false, null, "File not found: " + path); break; }
+                    string token = Guid.NewGuid().ToString("N");
+                    lock (media) media[token] = path;
+                    Reply(id, true, new Dictionary<string, object> { { "url", "https://" + Host + "/__media/" + token + "/" + Uri.EscapeDataString(Path.GetFileName(path)) },
+                        { "size", new FileInfo(path).Length } }, null);
+                    break;
+                }
             case "pickFile": // a path only: the file is read in parts (readRange)
                 {
                     using (OpenFileDialog d = new OpenFileDialog())
@@ -684,4 +722,30 @@ class MainForm : Form
             finally { deferral.Complete(); }
         }));
     }
+}
+
+// the first `length` bytes of a stream (a byte range of a video file); it closes the file with it
+class RangeStream : Stream
+{
+    readonly Stream inner;
+    readonly long length;
+    long done;
+    public RangeStream(Stream inner, long length) { this.inner = inner; this.length = length; }
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+        if (done >= length) return 0;
+        int n = inner.Read(buffer, offset, (int)Math.Min(count, length - done));
+        done += n;
+        return n;
+    }
+    public override bool CanRead { get { return true; } }
+    public override bool CanSeek { get { return false; } }
+    public override bool CanWrite { get { return false; } }
+    public override long Length { get { return length; } }
+    public override long Position { get { return done; } set { throw new NotSupportedException(); } }
+    public override void Flush() { }
+    public override long Seek(long offset, SeekOrigin origin) { throw new NotSupportedException(); }
+    public override void SetLength(long value) { throw new NotSupportedException(); }
+    public override void Write(byte[] buffer, int offset, int count) { throw new NotSupportedException(); }
+    protected override void Dispose(bool disposing) { if (disposing) inner.Dispose(); base.Dispose(disposing); }
 }

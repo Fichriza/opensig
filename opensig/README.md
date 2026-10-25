@@ -191,6 +191,14 @@ generator writes a `.bat` file built on these commands.
   MATLAB `.mat` (v5 incl. compressed and structs; v7.3 via HDF5), NumPy `.npy`/`.npz`, UFF/UNV dataset 58, GDF 1/2,
   EDF/BDF, HDF5/JLD2/NetCDF-4 (signal selection dialog), data-log `.sig` + `.txt`, clipboard, `.flt` filter
   curves and `.flb` filter banks, `.cal` calibration files.
+- **Video windows** (`js/video.js`; File ▸ Open video…, a dropped video file, Attach a video… in a signal window's
+  menu): the video in a window of its own and its sound as signal windows, the video linked to the first channel – or
+  to any time signal with an offset (Sync with signal…). It plays along (muted) while the signal plays with sound,
+  shows the frame at the end of the visible part while it plays without sound, else the frame at the signal's cursor
+  or the start of its visible part; its own controls draw a playhead over the signal and set the cursor where they
+  stop. Frame steps, the video's own sound on or off. The desktop app streams the file from disk in byte ranges (host
+  call `mediaUrl`, served under `/__media/`), so videos of any size seek; workspaces keep the offset and, in the
+  desktop app, the path. In the desktop app the video follows the sound within about one frame (measured).
 - **Following a CSV file that keeps growing** (`js/follow.js`; File ▸ ASCII / CSV files and Data acquisition ▸ Follow
   updating CSV file…): the import settings plus the check interval, whether the writing program appends rows or writes
   the whole file again, and how many seconds to keep. New complete rows are appended to the column windows, and linked
