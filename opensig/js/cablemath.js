@@ -19,15 +19,16 @@
   // beam with clamped ends under tension: EI w'''' − T w'' − m ω² w = 0 with w = w' = 0 at both ends. With α² − β² = T/EI
   // and m ω² = EI α²β², the frequency equation – divided by cosh αL, so it cannot overflow – is
   // 2αβ (sech αL − cos βL) + (α² − β²) tanh αL sin βL = 0, and the n-th root lies in nπ < βL < (n+1)π.
-  function fixedFrequency(T, n, c) {
-    if (!(c.EI > 0)) return stringFrequency(T, n, c);
+  // the n-th root βL of the frequency equation for the tension T, with αL and the frequency (c.EI > 0)
+  function fixedRoot(T, n, c) {
     const L = c.L, t = Math.max(T, 0) / c.EI;
     const h = bl => { const b = bl / L, a = Math.sqrt(b * b + t), aL = a * L; return 2 * a * b * (1 / Math.cosh(aL) - Math.cos(bl)) + (a * a - b * b) * Math.tanh(aL) * Math.sin(bl); };
     let lo = n * PI, hi = (n + 1) * PI, hlo = h(lo);
     for (let i = 0; i < 200 && hi - lo > 1e-14 * hi; i++) { const mid = (lo + hi) / 2, hm = h(mid); if ((hm < 0) === (hlo < 0)) { lo = mid; hlo = hm; } else hi = mid; }
     const b = (lo + hi) / 2 / L, a = Math.sqrt(b * b + t);
-    return a * b * Math.sqrt(c.EI / c.m) / (2 * PI);
+    return { aL: a * L, bL: b * L, f: a * b * Math.sqrt(c.EI / c.m) / (2 * PI) };
   }
+  const fixedFrequency = (T, n, c) => c.EI > 0 ? fixedRoot(T, n, c).f : stringFrequency(T, n, c);
   // the tension that gives the n-th clamped-beam frequency f; NaN when f is at or below the frequency without tension
   function fixedTension(f, n, c) {
     if (!(c.EI > 0)) return stringTension(f, n, c);
@@ -191,7 +192,7 @@
     return y;
   }
 
-  const CABLEMATH = { G, stringTension, stringFrequency, hingedTension, hingedFrequency, fixedTension, fixedFrequency, frequency,
+  const CABLEMATH = { G, stringTension, stringFrequency, hingedTension, hingedFrequency, fixedTension, fixedFrequency, fixedRoot, frequency,
     fitTension, outliers, parameters, zui, zuiGamma, ZUI, assignModes, simulate };
   if (typeof module !== 'undefined' && module.exports) module.exports = CABLEMATH; else root.CABLEMATH = CABLEMATH;
 })(typeof window !== 'undefined' ? window : globalThis);

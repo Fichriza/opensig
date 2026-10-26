@@ -187,16 +187,23 @@ generator writes a `.bat` file built on these commands.
 - **Cable tension from vibration** (`js/cable.js`, `js/cablemath.js`; 3D tools ▸ Cable tension from vibration…, the
   large cable button right of Geometry): the tension of a stay cable, hanger or tie from an accelerometer on it. Input:
   the signal (its visible part) and the cable data – length, mass per metre, E, I, A, inclination, design tension –
-  kept for the next cable. From a signal it opens a PSD window (Welch, Hann, half-overlapping segments, dB) with its
-  peak detection switched on (Signal tools ▸ Peak detection…, prominence 8 dB, parabolic position) and the cable window
-  under it; on a spectrum window it uses that spectrum and its peak detection. Every peak detection method works, and
+  kept for the next cable. From a signal it puts the cable window under one of the signal's spectrum windows (chosen in
+  the dialog, those with the peak detection on first) – no new window – or, when there is none or the user asks, under
+  a new PSD window (Welch, Hann, half-overlapping segments, dB); the peak detection of the spectrum is switched on if it
+  is off (Signal tools ▸ Peak detection…, prominence 8 dB, parabolic position). On a spectrum window it uses that
+  spectrum and its peak detection. Every peak detection method works, and
   the cable window follows its settings (Peak detection… in its bar). The cable window numbers the detected peaks as
   the harmonic series: the first frequency whose first six harmonics fall on the detected peaks that stand out most
   (with the inharmonicity of bending stiffness), then mode by mode from a line of (f_n/n)² over n²; weak peaks and
   modes off a robust Theil–Sen line are left out, and a click on a mode (table or plot) overrides that. Five methods: taut string, beam with hinged ends,
   beam with clamped ends (the exact frequency equation, solved by bisection), a fit of several modes that also finds EI,
   and Zui, Shinke & Namita (1996) with the bending and sag parameters ξ and Γ; plus Irvine's λ², the sag ratio, the
-  ratio to the design tension and notes when the methods disagree. Copy and Excel export (sheets Tension and Modes).
+  ratio to the design tension and notes when the methods disagree. **Calculation steps** (a button in the bar,
+  `display.cabCalc`) shows the whole calculation with the cable's numbers instead of the results: SI data, the
+  numbering of the peaks, per method the formula, a worked example for the first mode used (`CABLEMATH.fixedRoot` gives
+  αL and βL for the clamped beam), a table of the modes used and the mean with its scatter, the parameters and the
+  result – as MathML (texmath.js), and as plain text for Copy and the Calculation sheet of the Excel export (sheets
+  Tension, Modes, Calculation).
   Two examples (Help ▸ Examples): a stay cable (80 m, 2950 kN) and a short arch hanger (12 m, 450 kN, ξ ≈ 22) with
   simulated ambient records; `test/cable.test.js` checks the formulas against the clamped-beam roots and asymptotes,
   Zui's formulas against the exact beam, and the whole chain on both simulated records (within 0.5 % and 1 %).

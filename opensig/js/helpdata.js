@@ -760,12 +760,13 @@ ${SEE('georoving', 'rovresults', 'geometry')}`)
 <h2>Using it</h2>
 <ol><li>Open the record and select its window. Like an FFT, the module uses the <b>visible part</b>: zoom to analyse only a part of the record.</li>
 <li>Choose ${P('3D tools', 'Cable tension from vibration…')} and enter the cable data (below). The data are kept for the next cable of the same bridge.</li>
-<li>Two linked windows open: a <b>PSD</b> of the record, with its peak detection switched on (the prominence method: peaks at least 8 dB above the valleys beside them), and the <b>cable window</b>, which numbers the detected peaks as the cable's modes. Chosen on a spectrum window instead, the module uses that spectrum and its peak detection.</li>
+<li>The <b>cable window</b> opens under a spectrum of the record and numbers its detected peaks as the cable's modes. When the signal already has spectrum windows (an FFT or PSD you made), <b>Spectrum window</b> in the dialog offers them – those with the peak detection on first – so no new window is made; their peak detection is switched on if it is off (the prominence method: peaks at least 8 dB above the valleys beside them). Choose <b>A new PSD window</b>, or start from a signal without a spectrum, and a PSD window is made between them. Chosen on a spectrum window, the module uses that spectrum. In the ${L('control')} you can also drag the cable window's input onto another spectrum.</li>
 <li>Tune the peaks with <b>Peak detection…</b> in the cable window (or ${P('Signal tools', 'Peak detection…')} on the PSD window): every method and setting of the ${L('peaks')} can be used, and the cable window follows. If a mode is missing, lower the prominence; if noise peaks get in, raise it. The PSD itself – averaging and resolution – is set in the PSD window's ${L('properties')}.</li>
 <li>The cable window shows the spectrum with the detected peaks (orange marks) and the modes found, the tension and its ratio to the design tension, and two tables: the tension by every method, and every mode with its frequency and tension.</li>
 <li>In the spectrum, green lines are the modes used, grey dashed lines weak peaks or modes you left out, red dashed lines modes off the harmonic series (another component's peak, or noise). Click a mode – in the table or the spectrum – to leave it out or use it; <b>Automatic modes</b> undoes your clicks.</li>
 <li>Click a method in the table, or choose it in <b>Tension from</b>, to make it the result.</li>
-<li><b>Copy</b> puts the results on the clipboard for Excel or Word; <b>Excel…</b> saves a workbook with the sheets Tension and Modes. <b>Cable data…</b> changes the data.</li></ol>
+<li><b>Calculation steps</b> shows how the tension is calculated, with this cable's numbers: the cable data in SI units (EI, EA), how the peaks were numbered, and for every method its formula, a worked example for the first mode used, a table of all modes used and the average with its scatter; then the bending and sag parameters and the result. The chosen method is marked and open; click a heading to open or close a step. Click the button again for the results.</li>
+<li><b>Copy</b> puts the results – or, while the calculation steps are shown, the steps as text – on the clipboard for Excel or Word; <b>Excel…</b> saves a workbook with the sheets Tension, Modes and Calculation. <b>Cable data…</b> changes the data.</li></ol>
 <h2>The cable data</h2>
 <table class="hv-table"><tr><th>Field</th><th>Meaning</th></tr>
 <tr><td>Length L (m)</td><td>The vibrating length: between the anchorages, or between a damper and the far anchorage when the damper holds the cable</td></tr>
@@ -776,7 +777,8 @@ ${SEE('georoving', 'rovresults', 'geometry')}`)
 <tr><td>Lowest / highest frequency</td><td>The range searched for modes; 0 as the highest: the whole spectrum shown</td></tr>
 <tr><td>First frequency, about</td><td>Helps when another peak (of the deck or tower) is taken for the cable's: the search stays within ±15 % of it</td></tr>
 <tr><td>Modes, at most</td><td>How many modes are searched</td></tr>
-<tr><td>Averaged segments of the PSD</td><td>Only when the PSD window is made: it averages this many half-overlapping segments – more give a smoother spectrum, fewer a finer frequency resolution. Later, change it in the PSD window's properties</td></tr></table>
+<tr><td>Spectrum window</td><td>Only when you start from a signal that has spectrum windows: which one gives the peaks, or a new PSD window</td></tr>
+<tr><td>Averaged segments of the PSD</td><td>Only when a PSD window is made: it averages this many half-overlapping segments – more give a smoother spectrum, fewer a finer frequency resolution. Later, change it in the PSD window's properties</td></tr></table>
 <h2>Which method?</h2>
 <ul><li><b>Beam, clamped ends (exact)</b> – the default: the exact frequencies of a tensioned beam fixed at both ends, with the bending stiffness EI. Right for most anchored cables and hangers. With I = 0 it is the taut string.</li>
 <li><b>Beam, hinged ends</b> – a closed formula with EI for ends that can rotate; for clamped short members it gives too much.</li>

@@ -68,7 +68,8 @@ Windows desktop app – the window and taskbar icon.*
   Enhanced FDD, MAC, roving tests measured in several setups, and Excel export of the results.
 - **Cable tension** – the tension of stay cables and hangers from an accelerometer: the harmonic series found in the
   spectrum, five methods (taut string, hinged or clamped beam, a multi-mode fit that finds EI, Zui et al. 1996), the
-  bending and sag parameters and the ratio to the design tension.
+  bending and sag parameters and the ratio to the design tension, with every step of the calculation shown with the
+  cable's numbers; it reuses the spectrum windows a signal already has.
 - **Workspaces** – every workspace in its own tab, saved with or without data and restored at the next start; custom
   tools, scripts, overlays and stacked views.
 - **Videos in step with signals** – open a video (MP4, WebM, MOV …) and its sound, or attach a camera's video to

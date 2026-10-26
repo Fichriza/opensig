@@ -1,11 +1,12 @@
 /* OpenSig Cable tension module (3D tools ▸ Cable tension from vibration…, the button right of Geometry): the tension of
-   a stay cable or hanger from an accelerometer fixed on it. The chain is signal → PSD window → cable window: the peaks
-   are those of the PSD window's peak detection (Signal tools ▸ Peak detection…, switched on with the prominence
-   method), and the cable window numbers them as the cable's harmonic series. It shows the spectrum with the detected
-   peaks and the modes, a table of the modes and the tension by five methods – taut string, beam with hinged or clamped
-   ends, a fit of several modes (which also finds the bending stiffness) and Zui et al. (1996) – with the bending (ξ)
-   and sag (λ²) parameters and the ratio to the design tension. Click a mode, in the table or the plot, to leave it out
-   or use it; click a method to choose it. Math: cablemath.js. */
+   a stay cable or hanger from an accelerometer fixed on it. The chain is signal → spectrum window → cable window: the
+   spectrum is one the signal already has (chosen in the dialog) or a new PSD window, and the peaks are those of its
+   peak detection (Signal tools ▸ Peak detection…, switched on with the prominence method if it is off); the cable
+   window numbers them as the cable's harmonic series. It shows the spectrum with the detected peaks and the modes, a
+   table of the modes and the tension by five methods – taut string, beam with hinged or clamped ends, a fit of several
+   modes (which also finds the bending stiffness) and Zui et al. (1996) – with the bending (ξ) and sag (λ²) parameters
+   and the ratio to the design tension, or (Calculation steps) every step of the calculation with the cable's numbers.
+   Click a mode, in the table or the plot, to leave it out or use it; click a method to choose it. Math: cablemath.js. */
 (function (root) {
   'use strict';
   const { APP, UI, OPS, DSP } = root, CM = root.CABLEMATH;
@@ -62,7 +63,7 @@
       return Object.assign({}, m, { outlier: out[k], auto, used, Ts: have ? CM.stringTension(m.f, m.n, c) : NaN,
         Th: have && c.EI > 0 ? CM.hingedTension(m.f, m.n, c) : NaN, Tf: have && c.EI > 0 ? CM.fixedTension(m.f, m.n, c) : NaN });
     });
-    const used = modes.filter(m => m.used), res = { spec, sp, peaks: r.peaks, fMax, fMin: Math.max(p.fMin || 0, spec.f0), modes, used, note: r.note, c };
+    const used = modes.filter(m => m.used), res = { spec, sp, peaks: r.peaks, fMax, fMin: Math.max(p.fMin || 0, spec.f0), modes, used, note: r.note, c, base: r.base, bInh: r.b };
     if (!have) return res;
     const mean = key => {
       const v = used.map(m => m[key]).filter(isFinite), n = v.length, T = n ? v.reduce((s, x) => s + x, 0) / n : NaN;
@@ -114,9 +115,9 @@
     if (!w.op.params.use || typeof w.op.params.use !== 'object') w.op.params.use = {};
     v = { w, mouse: null };
     v.root = h('div', { class: 'geo cab' });
-    v.root.innerHTML = '<div class="geo-bar"></div><div class="cab-plot"><canvas></canvas></div><div class="cab-res"><div class="cab-left"></div><div class="cab-right"></div></div>';
+    v.root.innerHTML = '<div class="geo-bar"></div><div class="cab-plot"><canvas></canvas></div><div class="cab-res"><div class="cab-left"></div><div class="cab-right"></div><div class="cab-calc" hidden></div></div>';
     v.bar = v.root.querySelector('.geo-bar'); v.canvas = v.root.querySelector('canvas');
-    v.left = v.root.querySelector('.cab-left'); v.right = v.root.querySelector('.cab-right');
+    v.left = v.root.querySelector('.cab-left'); v.right = v.root.querySelector('.cab-right'); v.calc = v.root.querySelector('.cab-calc');
     buildBar(w, v);
     new ResizeObserver(() => draw(w, v)).observe(v.root.querySelector('.cab-plot'));
     v.canvas.addEventListener('mousemove', e => { const b = v.canvas.getBoundingClientRect(); v.mouse = [e.clientX - b.left, e.clientY - b.top]; draw(w, v); });
@@ -130,10 +131,11 @@
     const sel = h('select', { class: 'geo-sel', title: 'The method for the tension' }, ...METHODS.map(([k, l]) => h('option', { value: k }, l)));
     sel.value = P(w).method; sel.onchange = () => setMethod(w, sel.value);
     v.sel = sel; v.info = h('span', { class: 'cab-info' });
+    v.calcBtn = btn('Calculation steps', 'Show how the tension is calculated, step by step, with the numbers of this cable (again: back to the results)', () => { w.display.cabCalc = !w.display.cabCalc; render(w, v); });
     v.bar.replaceChildren(btn('Cable data…', 'Length, mass, stiffness, design tension and the modes searched', () => settings(w)),
       btn('Peak detection…', 'The peak detection of the spectrum window (Signal tools ▸ Peak detection…): method and settings', () => peakSettings(w)), h('span', { class: 'cab-lab' }, 'Tension from'), sel,
-      btn('Automatic modes', 'Use the modes chosen automatically again (undo your clicks on modes)', () => { P(w).use = {}; APP.queueCompute(w); }),
-      btn('Copy', 'Copy the results as a table (for Excel or Word)', () => copy(w)), btn('Excel…', 'Save the results as an Excel workbook', () => excel(w)), v.info);
+      btn('Automatic modes', 'Use the modes chosen automatically again (undo your clicks on modes)', () => { P(w).use = {}; APP.queueCompute(w); }), v.calcBtn,
+      btn('Copy', 'Copy the results – or, with the calculation steps shown, the calculation – as a table (for Excel or Word)', () => copy(w)), btn('Excel…', 'Save the results and the calculation steps as an Excel workbook', () => excel(w)), v.info);
   }
   function setMethod(w, k) { P(w).method = k; keepData(P(w)); APP.queueCompute(w); }
   // the peak detection dialog of the spectrum window; the cable window follows its settings
@@ -153,6 +155,10 @@
   function render(w, v) {
     const r = v.res, p = P(w);
     v.sel.value = p.method;
+    const calc = !!w.display.cabCalc && !!r && !r.needPeaks; // the calculation steps instead of the results
+    v.calcBtn.classList.toggle('on', !!w.display.cabCalc);
+    v.left.hidden = v.right.hidden = calc; v.calc.hidden = !calc; v.root.classList.toggle('cab-calc-on', calc);
+    if (calc) renderCalc(w, v);
     if (!r) { v.left.replaceChildren(h('div', { class: 'cab-empty' }, v.err || 'No data')); v.right.replaceChildren(); draw(w, v); return; }
     const src = S.wins.get(w.parents[0]), srcName = src ? src.id + '#' + src.title : '';
     if (r.needPeaks) {
@@ -212,6 +218,175 @@
       return tr;
     });
     return h('table', { class: 'cab-tab cab-modes' }, h('thead', {}, h('tr', {}, ...head.map(t => h('th', { title: t === 'Peak (dB)' ? 'Height of the peak above the local median of the spectrum' : '' }, t)))), h('tbody', {}, ...rows));
+  }
+
+  /* ---------- the calculation, step by step ---------- */
+  // Sections { id, title, chosen, items } of items { p } (text with $inline TeX$), { eq } (a formula in TeX) or
+  // { table: { head, rows } } – drawn as MathML in the window (texmath.js), as plain text in Copy and Excel
+  const tn = (v, d = 5) => { // a number in TeX: 2.95×10⁶ for large and small ones
+    if (!isFinite(v)) return v > 0 ? '\\infty' : '\\text{–}';
+    const a = Math.abs(v);
+    if (a && (a >= 1e6 || a < 1e-3)) { let e = Math.floor(Math.log10(a)), x = +(v / 10 ** e).toPrecision(d); if (Math.abs(x) >= 10) { x /= 10; e++; } return `${x}\\times 10^{${e}}`; }
+    return String(+v.toPrecision(d));
+  };
+  const tp = v => v < 0 ? `\\left(${tn(v)}\\right)` : tn(v), tk = v => tn(v / 1000); // in brackets when negative; N → kN
+  const ZUI_TEX = { '1a': '1 - 2.20\\,r - 0.550\\,r^2', '1b': '0.865 - 11.6\\,r^2', '1c': '0.828 - 10.5\\,r^2',
+    '2a': '1 - 4.40\\,r - 1.10\\,r^2', '2b': '1.03 - 6.33\\,r - 1.58\\,r^2', '2c': '0.882 - 85.0\\,r^2' };
+  const whyOff = m => m.used !== m.auto ? 'left out by you' : m.weak ? 'weak peak' : m.outlier ? 'off the series' : '';
+  function steps(w, r) {
+    const p = P(w), c = r.c, src = S.wins.get(w.parents[0]), srcName = src ? src.id + '#' + src.title : '';
+    const out = [], used = r.used, ex = used[0], tab = (head, rows) => ({ table: { head, rows } });
+    let k = 0; const sec = (id, title, items) => out.push({ id, title: `${++k}. ${title}`, items, chosen: !!r.methods && id === r.key });
+    const avg = M => !M || !M.count ? [{ p: 'No mode gives a tension here.' }] : [ // the mean over the modes used, and its scatter
+      { eq: `T = \\frac{1}{N}\\sum_{n} T_n = \\frac{${tk(M.T * M.count)}}{${M.count}} = ${tk(M.T)}\\text{ kN}` },
+      ...(M.count > 1 ? [{ eq: `s = \\sqrt{\\frac{\\sum_{n} (T_n - T)^2}{N - 1}} = ${tk(M.sd)}\\text{ kN} = ${tn(M.sd / M.T * 100, 3)}\\text{ % of }T` }] : [])];
+    // the cable
+    const data = [{ p: `$L = ${tn(c.L)}$ m, $m = ${tn(c.m)}$ kg/m, $\\theta = ${tn(p.theta || 0)}$°, $g = 9.80665$ m/s².` }];
+    data.push(c.EI > 0 ? { eq: `EI = E\\,I = ${tn(p.E)}\\text{ MPa}\\times ${tn(p.I)}\\text{ mm}^4 = ${tn(p.E)}\\times 10^{6}\\text{ Pa}\\times ${tn(p.I)}\\times 10^{-12}\\text{ m}^4 = ${tn(c.EI)}\\text{ N·m}^2` }
+      : { p: 'No moment of inertia ($I = 0$): no bending stiffness, so both beam formulas give the taut string.' });
+    data.push(c.EA > 0 ? { eq: `EA = E\\,A = ${tn(p.E)}\\text{ MPa}\\times ${tn(p.A)}\\text{ mm}^2 = ${tn(c.EA)}\\text{ N}` }
+      : { p: 'No steel area ($A = 0$): the sag parameters $\\lambda^2$ and $\\Gamma$ are not calculated.' });
+    sec('data', 'Cable data in SI units', data);
+    // the modes
+    const off = r.modes.filter(m => !m.used), from = r.sp ? `a PSD of the signal ${srcName} (Hann window, ${r.sp.segments} segments, 50 % overlap), by the standard peak detection (${methodName(PEAKS())})`
+      : `the spectrum ${srcName}, by its peak detection (${methodName(src && src.display.peaks)})`;
+    const modes = [{ p: `${r.peaks.length} peaks were found in ${from} between ${tn(r.fMin, 4)} and ${tn(r.fMax, 4)} Hz; line spacing $\\Delta f = ${tn(r.spec.df, 3)}$ Hz.` }];
+    if (r.modes.length) modes.push({ p: 'They are numbered as the harmonic series of the cable – its bending stiffness raises the higher modes a little:' },
+      { eq: `f_n \\approx n\\,f_0\\sqrt{1 + b\\,n^2},\\qquad f_0 = ${tn(r.base)}\\text{ Hz},\\quad b = ${tn(r.bInh, 3)}` },
+      { p: `${r.modes.length} modes found, ${used.length} used: n = ${used.map(m => m.n).join(', ') || '–'}.` + (off.length ? ` Not used: ${off.map(m => `${m.n} (${whyOff(m)})`).join(', ')}.` : '') + ' Click a mode in the plot or in the Modes table to use it or leave it out.' });
+    else modes.push({ p: (r.note || 'No modes found') + '.' });
+    sec('modes', 'Natural frequencies from the spectrum', modes);
+    if (!r.methods) { sec('none', 'Tension', [{ p: 'Enter the cable data – the length L and the mass per metre m at least – to calculate the tension.' }]); return out; }
+    const M = r.methods;
+    // taut string
+    const st = [{ p: 'A taut string – no bending stiffness – vibrates at' }, { eq: 'f_n = \\frac{n}{2L}\\sqrt{\\frac{T}{m}}\\qquad\\Rightarrow\\qquad T_n = 4\\,m\\,L^2\\left(\\frac{f_n}{n}\\right)^2' }];
+    if (ex) st.push({ p: `Mode ${ex.n}, as an example:` }, { eq: `T_{${ex.n}} = 4\\times ${tn(c.m)}\\times ${tn(c.L)}^2\\times\\left(\\frac{${tn(ex.f, 6)}}{${ex.n}}\\right)^2 = ${tn(ex.Ts)}\\text{ N} = ${tk(ex.Ts)}\\text{ kN}` });
+    st.push(tab(['Mode n', 'fₙ (Hz)', 'fₙ / n (Hz)', 'Tₙ (kN)'], used.map(m => [m.n, m.f, m.f / m.n, m.Ts / 1000])), ...avg(M.string));
+    sec('string', 'Taut string', st);
+    if (c.EI > 0) {
+      // beam, hinged ends
+      const bend = n => (n * Math.PI / c.L) ** 2 * c.EI;
+      const hi = [{ p: 'A beam with hinged ends under tension vibrates at' },
+        { eq: 'f_n = \\frac{n}{2L}\\sqrt{\\frac{T + n^2\\pi^2 EI/L^2}{m}}\\qquad\\Rightarrow\\qquad T_n = 4\\,m\\,L^2\\left(\\frac{f_n}{n}\\right)^2 - \\frac{n^2\\pi^2\\,EI}{L^2}' }];
+      if (ex) hi.push({ p: `Mode ${ex.n}: the string tension less the bending term,` },
+        { eq: `T_{${ex.n}} = ${tn(ex.Ts, 7)} - \\frac{${ex.n}^2\\pi^2\\times ${tn(c.EI)}}{${tn(c.L)}^2} = ${tn(ex.Ts, 7)} - ${tn(bend(ex.n))} = ${tn(ex.Th, 7)}\\text{ N} = ${tk(ex.Th)}\\text{ kN}` });
+      hi.push(tab(['Mode n', 'fₙ (Hz)', 'String (kN)', 'n²π²EI/L² (kN)', 'Tₙ (kN)'], used.map(m => [m.n, m.f, m.Ts / 1000, bend(m.n) / 1000, m.Th / 1000])), ...avg(M.hinged));
+      sec('hinged', 'Beam with hinged ends', hi);
+      // beam, clamped ends
+      const fx = [{ p: 'A beam with clamped ends under tension: its deflection w(x, t) obeys' },
+        { eq: 'EI\\,\\frac{\\partial^4 w}{\\partial x^4} - T\\,\\frac{\\partial^2 w}{\\partial x^2} + m\\,\\frac{\\partial^2 w}{\\partial t^2} = 0,\\qquad w = \\frac{\\partial w}{\\partial x} = 0\\text{ at both ends}' },
+        { p: 'With $\\alpha^2 - \\beta^2 = T/EI$ and $m\\,\\omega^2 = EI\\,\\alpha^2\\beta^2$ ($\\omega = 2\\pi f$) the frequency equation is' },
+        { eq: '2\\alpha\\beta\\left(\\text{sech}\\,\\alpha L - \\cos\\beta L\\right) + \\left(\\alpha^2 - \\beta^2\\right)\\tanh\\alpha L\\,\\sin\\beta L = 0,\\qquad f_n = \\frac{\\alpha\\beta}{2\\pi}\\sqrt{\\frac{EI}{m}}' },
+        { p: 'Its n-th root lies in $n\\pi < \\beta L < (n + 1)\\pi$. There is no formula for T: for each mode the tension is found by bisection, between 0 and the string tension, as the one whose n-th frequency is the measured one.' }];
+      if (ex && isFinite(ex.Tf)) {
+        const q = CM.fixedRoot(ex.Tf, ex.n, c);
+        fx.push({ p: `Mode ${ex.n}:` }, { eq: `T_{${ex.n}} = ${tn(ex.Tf)}\\text{ N}:\\quad \\alpha L = ${tn(q.aL)},\\ \\beta L = ${tn(q.bL)},\\quad f_{${ex.n}} = \\frac{\\alpha\\beta}{2\\pi}\\sqrt{\\frac{EI}{m}} = ${tn(q.f, 6)}\\text{ Hz (measured: }${tn(ex.f, 6)}\\text{ Hz)}` });
+      }
+      fx.push(tab(['Mode n', 'fₙ (Hz)', 'αL', 'βL', 'Tₙ (kN)'], used.map(m => { const q = isFinite(m.Tf) ? CM.fixedRoot(m.Tf, m.n, c) : {}; return [m.n, m.f, q.aL ?? NaN, q.bL ?? NaN, m.Tf / 1000]; })), ...avg(M.fixed));
+      sec('fixed', 'Beam with clamped ends (exact)', fx);
+    }
+    // fit of several modes
+    const F = M.fit, ft = [{ p: 'For a beam with hinged ends $(f_n/n)^2$ is a straight line over $n^2$:' },
+      { eq: '\\left(\\frac{f_n}{n}\\right)^2 = a + b\\,n^2,\\qquad a = \\frac{T}{4\\,m\\,L^2},\\quad b = \\frac{\\pi^2\\,EI}{4\\,m\\,L^4}' }];
+    if (isFinite(F.a)) {
+      const xs = used.map(m => m.n * m.n), ys = used.map(m => (m.f / m.n) ** 2), mx = xs.reduce((s, x) => s + x, 0) / xs.length, my = ys.reduce((s, y) => s + y, 0) / ys.length;
+      ft.push({ p: `The straight line through the ${used.length} modes used, by least squares ($x = n^2$, $y = (f_n/n)^2$):` },
+        tab(['Mode n', 'x = n²', 'y = (fₙ/n)² (Hz²)', 'a + b·x (Hz²)'], used.map((m, i) => [m.n, xs[i], ys[i], F.a + F.b * xs[i]])),
+        { eq: `b = \\frac{\\sum (x - \\bar{x})(y - \\bar{y})}{\\sum (x - \\bar{x})^2} = ${tn(F.b)}\\text{ Hz}^2,\\qquad a = \\bar{y} - b\\,\\bar{x} = ${tn(my)} - ${tp(F.b)}\\times ${tn(mx)} = ${tn(F.a)}\\text{ Hz}^2,\\qquad R^2 = ${tn(F.r2, 4)}` },
+        { eq: `T = 4\\,m\\,L^2\\,a = 4\\times ${tn(c.m)}\\times ${tn(c.L)}^2\\times ${tn(F.a)} = ${tk(F.T)}\\text{ kN}` + (F.se > 0 ? `\\quad(\\pm ${tk(F.se)}\\text{ kN standard error})` : '') },
+        { eq: `EI = \\frac{4\\,m\\,L^4\\,b}{\\pi^2} = \\frac{4\\times ${tn(c.m)}\\times ${tn(c.L)}^4\\times ${tp(F.b)}}{\\pi^2} = ${tn(F.EI)}\\text{ N·m}^2` + (c.EI > 0 ? `\\quad(\\text{given: }${tn(c.EI)})` : '') });
+    } else ft.push({ p: 'This needs at least two modes.' });
+    sec('fit', 'Fit of several modes (hinged ends, finds EI)', ft);
+    // Zui et al.
+    const Z = M.zui, zi = [{ p: 'Zui, Shinke & Namita (1996): practical formulas for the first or the second mode, chosen by the bending parameter ξ and the sag parameter Γ. Both depend on T, so the formula is applied again with each new T, starting from the string tension, until T no longer changes.' }];
+    if (Z.key) {
+      const n = Z.mode, f = (used.find(m => m.n === n) || {}).f, C = c.EI > 0 ? Math.sqrt(c.EI / (c.m * c.L ** 4)) : 0, rr = C / f;
+      const dl = c.m * CM.G * c.L * Math.cos(c.theta) / (8 * Z.T), k4 = n === 1 ? '4\\,' : '', k4x = n === 1 ? '4\\times ' : '';
+      zi.push({ eq: `C = \\sqrt{\\frac{EI}{m\\,L^4}} = ${c.EI > 0 ? `\\sqrt{\\frac{${tn(c.EI)}}{${tn(c.m)}\\times ${tn(c.L)}^4}} = ` : ''}${tn(C)}\\text{ Hz}` },
+        { eq: `\\xi = L\\sqrt{\\frac{T}{EI}} = ${tn(Z.xi, 4)},\\qquad \\delta = \\frac{m\\,g\\,L\\cos\\theta}{8\\,T} = ${tn(dl, 4)}` },
+        c.EA > 0 ? { eq: `\\Gamma = \\sqrt{\\frac{m\\,g\\,L}{128\\,EA\\,\\delta^3\\cos^5\\theta}}\\cdot\\frac{0.31\\,\\xi + 0.5}{0.31\\,\\xi - 0.5} = ${tn(Z.gamma, 4)}` } : { p: 'No steel area: Γ = ∞ (no sag).' },
+        { p: `So the formula for the ${Z.label}, with $r = C/f_${n} = ${tn(rr, 4)}$:` },
+        { eq: `T = ${k4}m\\,(f_${n} L)^2\\left[${ZUI_TEX[Z.key]}\\right] = ${k4x}${tn(c.m)}\\times(${tn(f, 6)}\\times ${tn(c.L)})^2\\times\\left[${tn(CM.ZUI[Z.key].f(rr))}\\right] = ${tk(Z.T)}\\text{ kN}` });
+      if (Z.note) zi.push({ p: Z.note + '.' });
+    } else zi.push({ p: (Z.note || 'No result') + '.' });
+    sec('zui', 'Zui et al. (1996)', zi);
+    // bending and sag of the result
+    if (r.par && r.T > 0) {
+      const T = r.T, par = r.par, pa = [{ p: `For the tension found, $T = ${tk(T)}$ kN:` }];
+      pa.push(c.EI > 0 ? { eq: `\\xi = L\\sqrt{\\frac{T}{EI}} = ${tn(c.L)}\\times\\sqrt{\\frac{${tn(T)}}{${tn(c.EI)}}} = ${tn(par.xi, 4)}` } : { p: 'No bending stiffness: ξ = ∞.' },
+        { p: 'The smaller ξ, the more the bending stiffness matters – short, stiff cables and hangers; above about 50 a cable is nearly a string.' },
+        { eq: `\\delta = \\frac{m\\,g\\,L\\cos\\theta}{8\\,T} = \\frac{${tn(c.m)}\\times 9.80665\\times ${tn(c.L)}\\times\\cos ${tn(p.theta || 0)}°}{8\\times ${tn(T)}} = ${tn(par.sag, 4)}\\quad(\\text{sag / span})` });
+      if (c.EA > 0) pa.push({ eq: `L_e = L\\,(1 + 8\\,\\delta^2) = ${tn(c.L * (1 + 8 * par.sag ** 2), 6)}\\text{ m},\\qquad \\lambda^2 = \\frac{(8\\,\\delta)^2\\,EA\\,L}{T\\,L_e} = ${tn(par.lambda2, 4)}` },
+        { p: 'Irvine\'s λ²: above about 0.12 the sag raises the first in-plane mode noticeably.' });
+      sec('par', 'Bending and sag parameters', pa);
+    }
+    // the result
+    const res = [{ eq: `T = ${tk(r.T)}\\text{ kN}` }, { p: `by the method chosen: ${METHODS.find(x => x[0] === r.key)[1]} (choose another in the bar or the methods table).` }];
+    if (p.Tdesign > 0 && r.T > 0) res.push({ eq: `\\frac{T}{T_{\\text{design}}} = \\frac{${tk(r.T)}}{${tn(p.Tdesign)}} = ${tn(r.T / (p.Tdesign * 1000) * 100, 4)}\\text{ %}` });
+    sec('result', 'Result', res);
+    return out;
+  }
+  const esc = t => String(t).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
+  const TX = (tex, display) => root.TEXMATH ? root.TEXMATH.toMathML(tex, display) : esc(plain(tex));
+  const cellText = v => typeof v === 'number' ? (Number.isInteger(v) ? String(v) : fmt(v, 5)) : String(v ?? '');
+  function renderCalc(w, v) {
+    const open = v.open || (v.open = {}); // the sections opened or closed by hand stay so
+    v.calc.replaceChildren(h('div', { class: 'cab-calc-intro' }, 'How the tension is calculated, with the numbers of this cable (SI units: N, m, kg, s). The chosen method is marked; click a heading to open or close it. Copy and Excel… take these steps as text.'),
+      ...steps(w, v.res).map(s => {
+        const d = h('details', { class: 'cab-step' + (s.chosen ? ' chosen' : '') });
+        d.open = open[s.id] ?? (s.chosen || ['data', 'modes', 'none', 'result'].includes(s.id));
+        d.addEventListener('toggle', () => { open[s.id] = d.open; });
+        d.append(h('summary', {}, s.title, s.chosen ? h('span', { class: 'cab-chosen' }, 'the chosen method') : ''), ...s.items.map(stepItem));
+        return d;
+      }));
+  }
+  function stepItem(it) {
+    if (it.table) return h('table', { class: 'cab-tab cab-ctab' }, h('thead', {}, h('tr', {}, ...it.table.head.map(t => h('th', {}, t)))),
+      h('tbody', {}, ...it.table.rows.map(r => h('tr', {}, ...r.map(x => h('td', {}, cellText(x)))))));
+    const e = h(it.eq ? 'div' : 'p', it.eq ? { class: 'cab-eq' } : {});
+    e.innerHTML = it.eq ? TX(it.eq, true) : it.p.split('$').map((t, i) => i % 2 ? TX(t) : esc(t)).join('');
+    return e;
+  }
+  // TeX → plain text for Copy and Excel: fractions as a/b, roots as √(…), powers and indices in Unicode where it has them
+  const SUP = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹', '-': '⁻', n: 'ⁿ' };
+  const SUB = { 0: '₀', 1: '₁', 2: '₂', 3: '₃', 4: '₄', 5: '₅', 6: '₆', 7: '₇', 8: '₈', 9: '₉', n: 'ₙ', e: 'ₑ' };
+  const SYM = { alpha: 'α', beta: 'β', delta: 'δ', theta: 'θ', lambda: 'λ', xi: 'ξ', pi: 'π', omega: 'ω', Gamma: 'Γ', Delta: 'Δ', times: '×', cdot: '·', Rightarrow: '⇒',
+    partial: '∂', sum: 'Σ', infty: '∞', approx: '≈', pm: '±', sin: 'sin ', cos: 'cos ', tanh: 'tanh ', quad: '   ', qquad: '      ', ',': ' ', ';': ' ', ' ': ' ', '!': '' };
+  function plain(tex) {
+    const s = String(tex); let i = 0;
+    const wrap = t => /^[\w.·⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ₀₁₂₃₄₅₆₇₈₉ₙ]+$/.test(t) ? t : `(${t})`;
+    const script = (t, map, mark) => [...t].every(ch => map[ch]) ? [...t].map(ch => map[ch]).join('') : mark + wrap(t);
+    const until = end => { let o = ''; while (i < s.length && s[i] !== end) o += tok(); return o; };
+    const arg = () => { while (s[i] === ' ') i++; if (s[i] !== '{') return tok(); i++; const o = until('}'); i++; return o; };
+    function tok() {
+      const ch = s[i++];
+      if (ch === '^') return script(arg(), SUP, '^');
+      if (ch === '_') return script(arg(), SUB, '_');
+      if (ch === '{') { const o = until('}'); i++; return o; }
+      if (ch !== '\\') return ch;
+      const name = /[a-zA-Z]/.test(s[i]) ? s.slice(i).match(/^[a-zA-Z]+/)[0] : s[i]; i += name.length;
+      if (name === 'frac') { const a = arg(), b = arg(); return `${wrap(a)}/${wrap(b)}`; }
+      if (name === 'sqrt') return '√' + wrap(arg());
+      if (name === 'text') return arg();
+      if (name === 'bar') return arg() + '̄';
+      if (name === 'left' || name === 'right') { const f = s[i++]; return f === '.' ? '' : f; }
+      return SYM[name] ?? name;
+    }
+    return until(undefined).replace(/ {2,}/g, m => m.length > 3 ? '   ' : ' ').trim();
+  }
+  function calcRows(w) { // the steps as spreadsheet rows
+    const v = viewOf(w);
+    if (!v.res || v.res.needPeaks) throw new Error('No calculation yet');
+    const rows = [];
+    for (const s of steps(w, v.res)) {
+      rows.push([{ v: s.title + (s.chosen ? ' – the chosen method' : ''), bold: true }]);
+      for (const it of s.items) {
+        if (it.table) { rows.push(it.table.head.map(t => ({ v: t, bold: true }))); it.table.rows.forEach(r => rows.push(r.map(x => typeof x === 'number' && !isFinite(x) ? '' : x))); }
+        else rows.push([it.eq ? '      ' + plain(it.eq) : it.p.split('$').map((t, i) => i % 2 ? plain(t) : t).join('')]);
+      }
+      rows.push([]);
+    }
+    return rows;
   }
 
   /* ---------- the spectrum ---------- */
@@ -283,8 +458,10 @@
   }
 
   /* ---------- the cable data ---------- */
-  // seg: the PSD is made from a signal (a new PSD window, or a cable window of the first version)
-  function fieldsOf(p, seg) {
+  // seg: the PSD is made from a signal (a new PSD window, or a cable window of the first version); specs: the signal's
+  // spectrum windows to choose from (a new PSD window is the last choice)
+  const specName = x => `${x.label} – ${x.title}${x.display.peaks && x.display.peaks.on ? ' (peak detection on)' : ''}`;
+  function fieldsOf(p, seg, specs) {
     return [
       { type: 'section', label: 'Cable' },
       { key: 'name', label: 'Name', type: 'text', value: p.name || '', hint: 'e.g. S12 upstream' },
@@ -299,13 +476,17 @@
       { key: 'method', label: 'Tension from', type: 'select', options: METHODS, value: p.method },
       { type: 'section', label: 'Modes' },
       { type: 'info', label: 'The peaks come from the peak detection of the spectrum window (Signal tools ▸ Peak detection…, or Peak detection… in the cable window); these settings number them as the cable\'s modes.' },
+      ...(specs ? [{ key: 'spec', label: 'Spectrum window', type: 'select', value: specs.length ? String(specs[0].id) : 'new',
+        options: [...specs.map(x => [String(x.id), specName(x)]), ['new', 'A new PSD window (Welch averaging, Hann)']],
+        hint: specs.length ? 'an existing spectrum of this signal, with its peak detection – or a new one' : 'this signal has no spectrum window yet' }] : []),
       { key: 'fMin', label: 'Lowest frequency (Hz)', type: 'number', value: p.fMin, min: 0 },
       { key: 'fMax', label: 'Highest frequency (Hz)', type: 'number', value: p.fMax || 0, min: 0, hint: '0 = the whole spectrum' },
       { key: 'f1', label: 'First frequency, about (Hz)', type: 'number', value: p.f1 || 0, min: 0, hint: '0 = found automatically' },
       { key: 'maxModes', label: 'Modes, at most', type: 'number', value: p.maxModes, min: 1, max: 40, step: 1 },
-      ...(seg ? [{ key: 'nseg', label: 'Averaged segments of the PSD', type: 'number', value: p.nseg, min: 1, max: 64, step: 1, hint: 'more: a smoother spectrum, but a coarser resolution' }] : [])];
+      ...(seg ? [{ key: 'nseg', label: 'Averaged segments of the PSD', type: 'number', value: p.nseg, min: 1, max: 64, step: 1, hint: 'more: a smoother spectrum, but a coarser resolution',
+        show: v => !specs || v.spec === 'new' }] : [])];
   }
-  const askData = (p, title, seg) => dialog({ title: title || 'Cable data', intro: 'Units: m, kg/m, MPa, mm², mm⁴, degrees, kN. The tension needs L and m; I adds the bending stiffness, A and θ the sag.', fields: fieldsOf(p, seg),
+  const askData = (p, title, seg, specs) => dialog({ title: title || 'Cable data', intro: 'Units: m, kg/m, MPa, mm², mm⁴, degrees, kN. The tension needs L and m; I adds the bending stiffness, A and θ the sag.', fields: fieldsOf(p, seg, specs),
     validate: x => !(x.L > 0) ? 'Enter the length L' : !(x.m > 0) ? 'Enter the mass per metre m' : null });
   const clean = v => Object.assign(v, { maxModes: Math.max(1, Math.round(v.maxModes || 10)) }, v.nseg != null ? { nseg: Math.max(1, Math.round(v.nseg || 16)) } : {});
   async function settings(w) {
@@ -337,29 +518,37 @@
     return { info, modes };
   }
   const num = v => typeof v === 'number' ? (isFinite(v) ? String(+v.toPrecision(7)) : '') : String(v ?? '');
-  async function copy(w) {
-    const { info, modes } = rowsOf(w);
-    await navigator.clipboard.writeText([...info, [], ...modes].map(r => r.map(num).join('\t')).join('\r\n'));
-    toast('Results copied');
+  async function copy(w) { // what the window shows: the results, or the calculation steps
+    const steps = !!w.display.cabCalc, rows = steps ? calcRows(w) : (({ info, modes }) => [...info, [], ...modes])(rowsOf(w));
+    await navigator.clipboard.writeText(rows.map(r => r.map(x => x && typeof x === 'object' ? x.v : num(x)).join('\t')).join('\r\n'));
+    toast(steps ? 'Calculation steps copied' : 'Results copied');
   }
   function excel(w) {
     const { info, modes } = rowsOf(w), cell = v => typeof v === 'number' && !isFinite(v) ? '' : v;
     download(UI.safeName(w.title) + '.xlsx', root.FORMATS.xlsx([
       { name: 'Tension', header: 0, widths: [30, 18, 26, 44], rows: [[{ v: w.title, bold: true }], [], ...info.map(r => r.map(cell))] },
-      { name: 'Modes', widths: [8, 12, 12, 10, 14, 14, 14, 7], rows: modes.map((r, i) => i ? r.map((v, k) => k && k < 7 ? { v: cell(v), fmt: k < 3 ? '0.000' : '0.00' } : v) : r) }]));
+      { name: 'Modes', widths: [8, 12, 12, 10, 14, 14, 14, 7], rows: modes.map((r, i) => i ? r.map((v, k) => k && k < 7 ? { v: cell(v), fmt: k < 3 ? '0.000' : '0.00' } : v) : r) },
+      { name: 'Calculation', header: 0, widths: [24, 14, 16, 16, 16], rows: [[{ v: w.title, bold: true }], [], ...calcRows(w)] }]));
   }
 
   /* ---------- commands ---------- */
-  // from a signal: a PSD window with peak detection, and the cable window under it; from a spectrum: the cable window
+  // the spectrum windows of a signal (its children), those with the peak detection on first
+  const spectraOf = s => [...s.children].map(id => S.wins.get(id)).filter(x => x && x.kind === '1d' && isSpectrum(x.data))
+    .sort((a, b) => (b.display.peaks && b.display.peaks.on ? 1 : 0) - (a.display.peaks && a.display.peaks.on ? 1 : 0) || a.id - b.id);
+  // from a spectrum: the cable window under it; from a signal: under one of its spectrum windows, with that window's peak
+  // detection – or under a new PSD window when it has none, or the user chooses one
   async function newCable(src) {
     const s = src || S.active, d = s && s.kind === '1d' && s.data && s.data.y ? s.data : null;
     const spectrum = isSpectrum(d), signal = !!d && !spectrum && !d.x;
     if (!spectrum && !signal) throw new Error('Select the accelerometer signal (or its spectrum) first, then choose Cable tension.');
-    const p = Object.assign(defaults(), lastData(), { name: '', use: {} }), v = await askData(p, 'Cable tension – cable data', signal);
+    const specs = signal ? spectraOf(s) : null;
+    const p = Object.assign(defaults(), lastData(), { name: '', use: {} }), v = await askData(p, 'Cable tension – cable data', signal, specs);
     if (!v) return null;
+    const pick = v.spec; delete v.spec;
     Object.assign(p, clean(v)); keepData(p);
-    if (spectrum && !(s.display.peaks && s.display.peaks.on)) APP.setPeaks(s, PEAKS());
-    return open(spectrum ? s : spectrumOf(s, p), p);
+    const spec = spectrum ? s : pick && pick !== 'new' ? S.wins.get(+pick) : null;
+    if (spec && !(spec.display.peaks && spec.display.peaks.on)) APP.setPeaks(spec, PEAKS());
+    return open(spec || spectrumOf(s, p), p);
   }
   // the PSD window between the signal and the cable window: Welch averaging, Hann, in dB, with its peak detection on
   function spectrumOf(s, p, rect) {

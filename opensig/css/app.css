@@ -553,6 +553,20 @@ li.sel > .hv-row .hv-lbl { background: var(--hv-sel); border-color: var(--hv-sel
 .cab-tab tr.off td { color: var(--geo-muted); }
 .cab-modes td:first-child, .cab-modes th:first-child { width: 28px; }
 .cab-modes .cab-note { white-space: nowrap; }
+.cab-left[hidden], .cab-right[hidden], .cab-calc[hidden] { display: none; }
+.cab.cab-calc-on .cab-plot { flex-basis: 30%; } /* more room for the steps */
+.cab-calc { flex: 1 1 100%; min-width: 0; max-width: 1000px; line-height: 1.45; }
+.cab-calc-intro { color: var(--geo-muted); margin: 0 0 8px; }
+.cab-step { border: 1px solid var(--geo-line); border-radius: 4px; margin: 0 0 6px; padding: 0 12px 4px; background: var(--geo-bg); }
+.cab-step > summary { cursor: pointer; font-weight: 600; padding: 5px 0; }
+.cab-step.chosen { border-color: #1883d7; box-shadow: inset 3px 0 #1883d7; }
+.cab-chosen { margin-left: 8px; padding: 0 6px; border-radius: 8px; background: #1883d7; color: #fff; font-size: 10px; font-weight: 600; vertical-align: 1px; }
+.cab-step p { margin: 5px 0; }
+.cab-eq { margin: 4px 0 8px; padding: 2px 0 2px 1.2em; overflow-x: auto; overflow-y: hidden; }
+.cab-eq math { display: inline math; math-style: normal; font-size: 1.12em; } /* left-aligned like the text, still in display style */
+.cab-ctab { width: auto; min-width: 46%; margin: 4px 0 6px 1.2em; }
+.cab-ctab tbody tr { cursor: default; }
+.cab-ctab tbody tr:hover td { background: none; }
 /* Video windows (video.js): the bar above, the picture filling the rest */
 .vid { flex-direction: column; }
 .vid-box { flex: 1; min-height: 0; position: relative; background: #000; }
