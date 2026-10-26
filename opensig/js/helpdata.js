@@ -454,7 +454,7 @@ ${EQ`y_n=b_0x_n+b_1x_{n-1}+b_2x_{n-2}+a_1y_{n-1}+a_2y_{n-2}`}
 ${EQ`\omega=2\pi f_j,\quad\omega_d=\omega\sqrt{1-\zeta^2},\quad E=e^{-\zeta\omega\Delta t},\quad K=\omega_d\Delta t,\quad C=E\cos K,\quad S=\frac{E\sin K}{K}`}
 ${EQ`b_0=1-S,\quad b_1=2\,(S-C),\quad b_2=E^2-S,\quad a_1=2C,\quad a_2=-E^2`}
 <p>The spectrum shows ${M`\max_ny_n`} (peak positive), ${M`\max_n(-y_n)`} (peak negative) or the larger of the two, in the unit of the input.</p>`),
-      T('peaks', 'Peak detection', ['peak detection', 'peaks', 'threshold', 'peak count', 'prominence', 'valleys', 'find peaks', 'z-score', 'wavelet peaks', 'copy peaks'], `
+      T('peaks', 'Peak detection', ['peak detection', 'peaks', 'threshold', 'peak count', 'prominence', 'valleys', 'find peaks', 'z-score', 'wavelet peaks', 'copy peaks', 'pick peaks', 'picked peaks'], `
 <p>${P('Signal tools', 'Peak detection…')} (also in the window menu) marks every peak in the visible part with its position and value. It is a setting of the signal window rather than a new window, so the markers follow when you zoom or play. Choose one of six <b>methods</b>:</p>
 <table class="hv-table"><tr><th>Method</th><th>Finds</th><th>Good for</th></tr>
 <tr><td>Threshold</td><td>The maximum of each part above a threshold</td><td>Clean signals</td></tr>
@@ -480,7 +480,8 @@ ${EQ`b_0=1-S,\quad b_1=2\,(S-C),\quad b_2=E^2-S,\quad a_1=2C,\quad a_2=-E^2`}
 <p>The signal is analysed with Ricker ("Mexican hat") wavelets of every width in the given range. A peak shows as a line of maxima across the widths; lines that are long enough and stand out from the local noise by the <b>minimum signal-to-noise ratio</b> are kept. Results match <code>scipy.signal.find_peaks_cwt</code>. This method is slower on very long visible parts.</p>
 <h2>All methods</h2>
 <ul><li><b>Detect negative peaks (valleys)</b> – also marks the minima.</li>
-<li><b>Peak position</b> – at the sample, or between samples by fitting a parabola (or a Gaussian, exact for Gaussian-shaped peaks) through the top three samples. Use it for exact frequencies of spectral lines.</li></ul>
+<li><b>Peak position</b> – at the sample, or between samples by fitting a parabola (or a Gaussian, exact for Gaussian-shaped peaks) through the top three samples. Use it for exact frequencies of spectral lines.</li>
+<li><b>Pick the detected peaks (Value picker)</b> – on by default: the peaks become the window's picked values P1, P2 … in X order (valleys too, when they are detected; at most 200), and the ${L('picker', 'Picked values table')} opens. They stay in step with the detection – zoom, new data or new settings pick the peaks found now – and they are listed in the ${L('control')} and copied or saved with the other picked values. In the graph a picked peak has a small "P1" tag under it, as its values are in the peak marker; click the point to see its full label. Points you pick yourself come after the peaks and are kept; a peak point you drag or move with the arrow keys becomes one of yours. Switch this off to mark the peaks only.</li></ul>
 <p>${P('Signal tools', 'Copy detected peaks')} copies the X and Y of every marked peak, tab-separated, for a spreadsheet. The Peak count and Average peak distance ${L('instruments')} read the detected peaks.</p>`)
     ]),
 
@@ -890,7 +891,8 @@ ${SEE('harmonic', 'picker')}`),
 <ul><li>Points show "P1 x | y" and follow the data when it changes.</li>
 <li>Drag a point to move it, ${K('←')} / ${K('→')} move the selected one by a sample (${K('Shift')}: 10), ${K('Del')} removes it, ${K('Esc')} deselects.</li>
 <li>${P('Instruments', 'Picked values table…')} lists X, Y and the differences ΔX, ΔY and 1/ΔX to the previous point – handy for periods and frequencies – and copies them or saves CSV.</li>
-<li>In the ${L('control')}, each window's points are one "Picked values" node.</li></ul>
+<li>In the ${L('control')}, each window's points are one "Picked values" node.</li>
+<li>The ${L('peaks')} picks the peaks it finds, as the first points P1, P2 … of the window (▲ for a peak, ▼ for a valley in the table), kept in step with the detection; your own points follow them.</li></ul>
 <p>Points are saved with the workspace.</p>`)
     ]),
 

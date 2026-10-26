@@ -3,7 +3,9 @@
    the nearest sample, the highest or lowest value near the mouse, an interpolated position, or the free mouse position.
    Points can be dragged, moved by one sample with ←/→ (Shift: 10 samples) and removed with Delete; Esc deselects.
    The Picked values table lists X, Y and the differences to the previous point (ΔX, ΔY, 1/ΔX) for copying or CSV
-   export. Points are stored with the window, so workspaces keep them. */
+   export. Points are stored with the window, so workspaces keep them. The peaks found by a window's peak detection
+   (Signal tools ▸ Peak detection…, "Pick the detected peaks") are its first points, P1 … in X order, kept in step
+   with the detection; the points picked by hand follow them. */
 (function (root) {
   'use strict';
   const { APP, UI, PLOT } = root;
@@ -19,8 +21,8 @@
   const has1D = () => S.active && S.active.kind === '1d' && S.active.data && S.active.data.y;
 
   /* ---------- positions ---------- */
-  function yOf(d, p) { // Y of a point on the current data (follows live data)
-    if (p.mode === 'free') return p.y;
+  function yOf(d, p) { // Y of a point on the current data (follows live data); a picked peak has its refined value
+    if (p.mode === 'free' || p.auto) return p.y;
     if (p.mode === 'interp' && !d.x) {
       const f = (p.x - d.x0) / d.dx, i = Math.floor(f);
       if (i < 0 || i > d.y.length - 1) return NaN;
@@ -45,11 +47,29 @@
     return { x: v ? v.x : x, mode: m === 'interp' ? 'sample' : m };
   }
   function labelOf(d, p, k) { return `P${k + 1}  ${nf(p.x)}${unit(d.xUnit)} | ${nf(yOf(d, p))}${unit(d.yUnit)}`; }
+  const kindOf = p => p.auto === 'valley' ? ' ▼' : p.auto ? ' ▲' : ''; // a picked peak or valley
 
-  // points for the graph (called from the window's render)
+  // points for the graph (called from the window's render); a picked peak gets a short tag – the peak annotation shows
+  // its values – unless it is the selected point
   function marks(w, d) {
     const ps = w.display.picks; if (!ps || !ps.length || !d || !d.y) return null;
-    return ps.map((p, k) => ({ x: p.x, y: yOf(d, p), label: labelOf(d, p, k), sel: !!(sel && sel.w === w.id && sel.i === k) })).filter(m => isFinite(m.y));
+    return ps.map((p, k) => {
+      const on = !!(sel && sel.w === w.id && sel.i === k), short = p.auto && !on;
+      return { x: p.x, y: yOf(d, p), label: short ? null : labelOf(d, p, k), tag: short ? 'P' + (k + 1) : null, tagUp: p.auto === 'valley', sel: on };
+    }).filter(m => isFinite(m.y));
+  }
+
+  // The peaks of a window's peak detection as its first points (pk from APP.peaksOf, null: none), called whenever they
+  // change. Points picked by hand follow them; a peak point that is dragged or moved becomes one of those.
+  const MAXPEAKS = 200;
+  function syncPeaks(w, pk) {
+    const ps = w.display.picks || [], own = ps.filter(p => !p.auto), old = ps.length - own.length;
+    const on = !!pk && !!w.display.peaks && w.display.peaks.pick !== false;
+    const peaks = on ? pk.x.slice(0, MAXPEAKS).map((x, k) => ({ x, y: pk.y[k], mode: 'peak', auto: pk.neg[k] ? 'valley' : 'peak' })) : [];
+    if (peaks.length === old && peaks.every((p, k) => p.x === ps[k].x && p.y === ps[k].y && p.auto === ps[k].auto)) return; // no change
+    if (sel && sel.w === w.id) sel = sel.i < old ? null : { w: w.id, i: sel.i - old + peaks.length };
+    w.display.picks = peaks.concat(own);
+    refreshTable();
   }
 
   /* ---------- mouse (called by the window's pointer handlers) ---------- */
@@ -93,6 +113,7 @@
     if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.ctrlKey && !e.altKey) {
       stop();
       const d = w.data, n = (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 10 : 1);
+      if (p.auto) { delete p.auto; delete p.y; p.mode = 'sample'; } // a moved peak point is the user's
       if (p.mode === 'free') { p.x += n * (d.dx || (w.view.x1 - w.view.x0) / 500); }
       else { const v = APP.valueAt(d, p.x), i = Math.max(0, Math.min(d.y.length - 1, (v ? v.i : 0) + n)); p.x = xOf(d, i); if (p.mode === 'interp') p.mode = 'sample'; }
       APP.requestRender(w); refreshTable();
@@ -133,14 +154,14 @@
     for (const w of (only || [...S.wins.values()]).slice().sort((a, b) => a.id - b.id)) {
       const ps = w.display.picks; if (!ps || !ps.length || !w.data || !w.data.y) continue;
       let prev = null;
-      ps.forEach((p, k) => { const y = yOf(w.data, p), r = { w, k, x: p.x, y, dx: prev ? p.x - prev.x : NaN, dy: prev ? y - prev.y : NaN }; out.push(r); prev = r; });
+      ps.forEach((p, k) => { const y = yOf(w.data, p), r = { w, k, p, x: p.x, y, dx: prev ? p.x - prev.x : NaN, dy: prev ? y - prev.y : NaN }; out.push(r); prev = r; });
     }
     return out;
   }
   function asText(sep, only) {
     const hdr = ['Window', 'Point', 'X', 'X unit', 'Y', 'Y unit', 'dX', 'dY', '1/dX'];
     const f = v => isFinite(v) ? (IOfmt(v)) : '';
-    return [hdr.join(sep)].concat(rows(only).map(r => [r.w.label + ' ' + r.w.title, 'P' + (r.k + 1), f(r.x), r.w.data.xUnit || '', f(r.y), r.w.data.yUnit || '', f(r.dx), f(r.dy), r.dx ? f(1 / r.dx) : ''].join(sep))).join('\r\n') + '\r\n';
+    return [hdr.join(sep)].concat(rows(only).map(r => [r.w.label + ' ' + r.w.title, 'P' + (r.k + 1) + (r.p.auto ? ' ' + r.p.auto : ''), f(r.x), r.w.data.xUnit || '', f(r.y), r.w.data.yUnit || '', f(r.dx), f(r.dy), r.dx ? f(1 / r.dx) : ''].join(sep))).join('\r\n') + '\r\n';
   }
   const IOfmt = v => root.IO && root.IO.fmtNum ? root.IO.fmtNum(v) : String(v);
 
@@ -190,7 +211,7 @@
     tb.replaceChildren(...(rs.length ? rs.map(r => {
       const d = r.w.data, isSel = sel && sel.w === r.w.id && sel.i === r.k;
       const tr = h('tr', { class: isSel ? 'sel' : '' },
-        h('td', { title: r.w.title }, r.w.label + ' ' + r.w.title), h('td', {}, 'P' + (r.k + 1)),
+        h('td', { title: r.w.title }, r.w.label + ' ' + r.w.title), h('td', { title: r.p.auto ? `A ${r.p.auto} found by the peak detection` : '' }, 'P' + (r.k + 1) + kindOf(r.p)),
         h('td', {}, nf(r.x) + unit(d.xUnit)), h('td', {}, nf(r.y) + unit(d.yUnit)),
         h('td', {}, isFinite(r.dx) ? nf(r.dx) + unit(d.xUnit) : ''), h('td', {}, isFinite(r.dy) ? nf(r.dy) + unit(d.yUnit) : ''),
         h('td', {}, r.dx ? nf(1 / r.dx) + (d.xUnit === 's' ? ' Hz' : d.xUnit ? ' 1/' + d.xUnit : '') : ''),
@@ -225,7 +246,7 @@
   function listOf(w) {
     const ps = w.display.picks, d = w.data; if (!ps || !ps.length || !d || !d.y) return [];
     const g5 = v => isFinite(v) ? String(Number(v.toPrecision(5))) : '—'; // compact form for the Control window
-    return ps.map((p, k) => { const y = yOf(d, p); return { k, x: p.x, y, text: labelOf(d, p, k), short: `P${k + 1} ${g5(p.x)}${unit(d.xUnit)} | ${g5(y)}`, sel: !!(sel && sel.w === w.id && sel.i === k) }; });
+    return ps.map((p, k) => { const y = yOf(d, p); return { k, x: p.x, y, text: labelOf(d, p, k) + kindOf(p), short: `P${k + 1}${kindOf(p)} ${g5(p.x)}${unit(d.xUnit)} | ${g5(y)}`, sel: !!(sel && sel.w === w.id && sel.i === k) }; });
   }
-  root.PICK = { marks, down, move, up, toggle: toggleMode, table: showTable, rows, listOf, select, remove, clear: clearWindow, text: asText, active: () => mode };
+  root.PICK = { marks, down, move, up, toggle: toggleMode, table: showTable, rows, listOf, select, remove, clear: clearWindow, text: asText, active: () => mode, peaks: syncPeaks, MAXPEAKS };
 })(window);

@@ -241,7 +241,10 @@ generator writes a `.bat` file built on these commands.
   distance instruments, with six methods: reference-checked threshold (see below); prominence with minimum height,
   distance and width (matches `scipy.signal.find_peaks`); N highest peaks; smoothed-derivative slope; adaptive moving
   z-score (lag, threshold, influence); wavelet ridge lines (matches `scipy.signal.find_peaks_cwt`). All can mark
-  valleys and refine positions between samples (parabola or Gaussian). Signal tools ▸ Copy detected peaks copies
+  valleys and refine positions between samples (parabola or Gaussian). "Pick the detected peaks" (on unless `pick:
+  false` in the settings) makes the peaks the window's first Value-picker points: `APP.peaksOf` calls `PICK.peaks(w,
+  peaks)` whenever it recomputes, which replaces the points marked `auto: 'peak' | 'valley'` (with their refined X and
+  Y, at most 200) and keeps the user's points after them; the dialog opens the Picked values table. Signal tools ▸ Copy detected peaks copies
   X/Y. `test/fixtures/make_peaks_scipy.py` writes the SciPy reference results checked by `test/dsp.test.js`.
 - **3D tools:** spectrogram/mesh views (the mesh a smoothly shaded, z-buffered surface in a 3D box, linear or dB, turned and
   tilted by dragging, zoomed by the wheel, the point under the pointer read out; time FFT with zero padding, averaging of

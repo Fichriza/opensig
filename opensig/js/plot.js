@@ -203,6 +203,13 @@
       ctx.beginPath(); ctx.arc(px, py, p.sel ? 5.5 : 4.5, 0, 2 * Math.PI); ctx.stroke();
       if (p.sel) { ctx.globalAlpha = 0.35; ctx.fillStyle = c; ctx.fill(); ctx.globalAlpha = 1; }
       ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px - 9, py); ctx.lineTo(px - 5, py); ctx.moveTo(px + 5, py); ctx.lineTo(px + 9, py); ctx.moveTo(px, py - 9); ctx.lineTo(px, py - 5); ctx.moveTo(px, py + 5); ctx.lineTo(px, py + 9); ctx.stroke();
+      if (p.tag) { // a short tag under a picked peak (over a valley), clear of the peak annotation
+        const tw = ctx.measureText(p.tag).width + 8, bh = 15, up = p.tagUp ? py - 11 - bh >= r.y : py + 11 + bh > r.y + r.h;
+        const bx = Math.round(px - tw / 2), by = Math.round(up ? py - 11 - bh : py + 11);
+        ctx.fillStyle = th.labelBg; ctx.fillRect(bx, by, tw, bh); ctx.strokeStyle = c; ctx.strokeRect(bx + 0.5, by + 0.5, tw - 1, bh - 1);
+        ctx.fillStyle = th.text; ctx.textAlign = 'center'; ctx.fillText(p.tag, px, by + bh / 2 + 0.5);
+        continue;
+      }
       if (!p.label) continue;
       const tw = ctx.measureText(p.label).width + 10, bh = 17, right = px + 10 + tw > r.x + r.w;
       const above = py - 26 >= r.y + 2; // label above the point, or below it near the top edge

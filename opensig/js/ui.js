@@ -441,7 +441,9 @@
       // all methods
       { type: 'section', label: 'All methods' },
       { key: 'negative', label: 'Detect negative peaks (valleys)', type: 'check', value: cur.negative },
-      { key: 'refine', label: 'Peak position', type: 'select', options: [['none', 'At the sample'], ['parabolic', 'Between samples (parabola)'], ['gaussian', 'Between samples (Gaussian)']], value: cur.refine || 'none' }].filter(Boolean),
+      { key: 'refine', label: 'Peak position', type: 'select', options: [['none', 'At the sample'], ['parabolic', 'Between samples (parabola)'], ['gaussian', 'Between samples (Gaussian)']], value: cur.refine || 'none' },
+      { key: 'pick', label: 'Pick the detected peaks (Value picker)', type: 'check', value: cur.pick !== false,
+        hint: `the peaks become the points P1, P2 … of the Picked values table (at most ${root.PICK ? root.PICK.MAXPEAKS : 200}), kept in step with the detection` }].filter(Boolean),
       validate: v => {
         const m = v.method;
         if (m === 'threshold') return v.pos == null || (v.negative && v.neg == null) ? 'Enter the thresholds' : v.width == null || v.width < 1 || v.width > 10000 ? 'Minimal peak width: 1 to 10000 samples' : null;
@@ -460,8 +462,11 @@
     APP.setPeaks(w, { on: v.on, method: v.method, pos: keep('pos'), neg: keep('neg'), width, multiple: keep('multiple'), negative: v.negative,
       prom: keep('prom'), useHeight: keep('useHeight'), height: keep('height'), distance: keep('distance', Math.round), minWidth: keep('minWidth'),
       count: keep('count', Math.round), smooth: keep('smooth', Math.round), slope: keep('slope'), amp: keep('amp'), lag: keep('lag', Math.round), z: keep('z'),
-      influence: keep('influence'), wmin: keep('wmin', Math.round), wmax: keep('wmax', Math.round), snr: keep('snr'), refine: v.refine });
-    if (v.on) { const n = APP.peaksOf(w).idx.length; toast(`${n} peak${n === 1 ? '' : 's'} in the visible part`); }
+      influence: keep('influence'), wmin: keep('wmin', Math.round), wmax: keep('wmax', Math.round), snr: keep('snr'), refine: v.refine, pick: v.pick });
+    if (!v.on) return;
+    const n = APP.peaksOf(w).idx.length, k = Math.min(n, root.PICK ? root.PICK.MAXPEAKS : 0);
+    toast(`${n} peak${n === 1 ? '' : 's'} in the visible part` + (v.pick && k ? ` – picked as P1${k > 1 ? '–P' + k : ''}` + (k < n ? ` (the first ${k})` : '') : ''));
+    if (v.pick && k && root.PICK) root.PICK.table(true); // the picked peaks, at once
   }
   async function copyPeaks() { // X / Y of the detected peaks, tab-separated
     const w = need('1d'), d = w.data, pk = APP.peaksOf(w);

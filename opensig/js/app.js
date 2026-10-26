@@ -310,11 +310,13 @@
       const at = p => { if (!d.x) return d.x0 + p * d.dx; const a = Math.floor(p), b = Math.min(d.y.length - 1, a + 1); return d.x[a] + (d.x[b] - d.x[a]) * (p - a); };
       const pts = r.idx.map((i, k) => ref ? DSP.refinePeak(d.y, i, s.refine, r.neg[k]) : { pos: i, val: d.y[i] });
       w._peaks = { key, idx: r.idx, neg: r.neg, x: ref ? pts.map(p => at(p.pos)) : r.idx.map(xOf), y: pts.map(p => p.val) };
+      if (root.PICK) root.PICK.peaks(w, w._peaks); // the peaks as picked values (unless s.pick is false)
     }
     return w._peaks;
   }
   function setPeaks(w, s) {
     w.display.peaks = s;
+    if (!peaksOf(w) && root.PICK) root.PICK.peaks(w, null); // detection off: no picked peaks
     viewChanged(w);
     for (const c of w.children) { const cw = S.wins.get(c); if (cw && cw.kind === 'instrument' && !cw.frozen) queueCompute(cw); }
   }
