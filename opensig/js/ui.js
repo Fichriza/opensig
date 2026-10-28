@@ -173,6 +173,15 @@
     }
   }
 
+  // a first column that rises in even steps (in the numeric rows of the preview) is a time or X column – as in the
+  // CSV files OpenSig exports with X/Y values
+  function timeColumnIn(lines, sep) {
+    const num = s => Number(sep === ',' ? s : s.replace(',', '.'));
+    const rows = lines.map(l => (sep === ' ' ? l.trim().split(/\s+/) : l.split(sep)).map(s => s.trim())).filter(c => c.length >= 2 && c.every(s => s !== '' && isFinite(num(s))));
+    if (rows.length < 4) return false;
+    const x = rows.map(c => num(c[0])), d = x.slice(1).map((v, i) => v - x[i]), m = d.reduce((a, b) => a + b, 0) / d.length;
+    return m > 0 && d.every(v => Math.abs(v - m) <= 0.01 * m);
+  }
   // the ASCII / CSV import settings; extra fields are added below (following a file that keeps growing)
   function csvDialog(text, title, extra) {
     const lines = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 30), sep = IO.detectSeparator(lines);
@@ -182,7 +191,7 @@
       { key: 'decimal', label: 'Number format', type: 'select', options: [['.', '1234.5 (decimal point)'], [',', '1234,5 (decimal comma)']], value: '.' },
       { key: 'headerRow', label: 'Read column header from row', type: 'number', value: 0, min: 0, step: 1, hint: '0 = none / auto' },
       { key: 'ignore', label: 'Ignore these columns', type: 'text', value: '', hint: 'comma-separated, 1-based' },
-      { key: 'timeColumn', label: 'Use first column to calculate the sampling rate (time column)', type: 'check', value: false },
+      { key: 'timeColumn', label: 'Use first column to calculate the sampling rate (time column)', type: 'check', value: timeColumnIn(lines, sep), hint: timeColumnIn(lines, sep) ? 'the first column rises in even steps' : '' },
       { key: 'fs', label: 'Sample rate (samples/s)', type: 'number', value: 1, show: v => !v.timeColumn }].concat(extra || []) });
   }
   const csvOptions = r => ({ separator: r.separator, decimal: r.decimal, headerRow: r.headerRow || 0, timeColumn: r.timeColumn,
@@ -206,10 +215,10 @@
     return importCsvText(text, 'Clipboard');
   }
 
-  async function saveSignal(visibleOnly) {
+  async function saveSignal(visibleOnly, fmt) { // fmt: the format offered first (default: WAV for time signals, else CSV)
     const w = need('1d'), d = visibleOnly ? APP.visibleData(w) : w.data;
-    const r = await dialog({ title: visibleOnly ? 'Save visible signal part' : 'Save signal as', fields: [
-      { key: 'fmt', label: 'Format', type: 'select', value: d.xUnit === 's' && !d.x ? 'wav32' : 'csvxy', options: [['wav32', 'WAV – 32-bit float'], ['wav16', 'WAV – 16-bit PCM (normalized)'], ['csvxy', 'CSV – X/Y values'], ['csvy', 'CSV – Y values only'], ...Object.keys(IO.RAW_TYPES).map(t => ['raw:' + t, 'Raw binary – ' + t])] },
+    const r = await dialog({ title: fmt === 'csvxy' ? 'Export signal as CSV' : visibleOnly ? 'Save visible signal part' : 'Save signal as', fields: [
+      { key: 'fmt', label: 'Format', type: 'select', value: fmt || (d.xUnit === 's' && !d.x ? 'wav32' : 'csvxy'), options: [['wav32', 'WAV – 32-bit float'], ['wav16', 'WAV – 16-bit PCM (normalized)'], ['csvxy', 'CSV – X/Y values'], ['csvy', 'CSV – Y values only'], ...Object.keys(IO.RAW_TYPES).map(t => ['raw:' + t, 'Raw binary – ' + t])] },
       { key: 'name', label: 'File name', type: 'text', value: safeName(baseName(w.title)) }] });
     if (!r) return;
     const xOf = i => d.x ? d.x[i] : d.x0 + i * d.dx;
@@ -828,7 +837,7 @@
       { label: 'ASCII / CSV files', sub: [
         { label: 'Import ASCII / CSV…', run: () => pickFiles('.csv,.txt,.dat,.asc,.tsv') },
         '-',
-        { label: 'Export signal as CSV (X/Y values)…', run: () => saveSignal(false), en: has1D },
+        { label: 'Export signal as CSV (X/Y values)…', run: () => saveSignal(false, 'csvxy'), en: has1D },
         { label: 'Export 3D graphics as CSV (XYZ triples)', run: () => export3D('xyz'), en: has3D },
         { label: 'Export 3D graphics as CSV (X/Y matrix)', run: () => export3D('xy'), en: has3D },
         { label: 'Export 3D graphics as CSV (Y/X matrix)', run: () => export3D('yx'), en: has3D }] },

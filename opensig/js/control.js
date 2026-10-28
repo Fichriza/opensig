@@ -864,17 +864,17 @@
     if (!await UI.confirmBox('Delete selected windows', `Delete ${ws.length} window${ws.length === 1 ? '' : 's'}? Their child windows stay, unlinked.`)) return;
     ws.forEach(APP.closeWindow); sel.length = 0; refresh();
   }
-  // Run a command on the first selected window, then copy the windows it created to the other selected windows,
-  // so a settings dialog is shown only once
+  // Run a command on the first selected window, then copy the windows it created to the other selected windows of the
+  // same kind (an analysis of a signal does not fit a 3D or instrument window), so a settings dialog is shown only once
   async function onAll(ws, fn) {
     if (!ws.length) return;
     const first = ws[0], before = new Set(S.wins.keys());
     APP.activate(first); await fn();
     const tops = [...S.wins.values()].filter(w => !before.has(w.id) && w.parents.includes(first.id));
     if (!tops.length || ws.length < 2) return;
-    const tools = tops.map(t => APP.toolFromWindow(t, true));
-    for (const w of ws.slice(1)) for (const t of tools) APP.applyTool(w, t);
-    toast(`Applied to ${ws.length} windows`);
+    const tools = tops.map(t => APP.toolFromWindow(t, true)), like = ws.slice(1).filter(w => w.kind === first.kind), skipped = ws.length - 1 - like.length;
+    for (const w of like) for (const t of tools) APP.applyTool(w, t);
+    toast(`Applied to ${like.length + 1} window${like.length ? 's' : ''}` + (skipped ? ` – ${skipped} selected window${skipped === 1 ? '' : 's'} of another kind left out` : ''));
   }
   const menuRun = (menu, label) => () => { const it = UI.findItem(menu, label); if (!it) throw new Error(label + ' is not available'); return it.run(); };
   const sameRate = ws => ws.every(w => Math.abs(w.data.dx - ws[0].data.dx) <= Math.abs(ws[0].data.dx) * 1e-9);
