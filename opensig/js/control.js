@@ -5,7 +5,8 @@
    the commands on all selected windows, Del deletes the selection, double-click brings a window to the front.
    Wiring: every node has an output port, analysis windows an input port. Drag from an output onto a node to make that
    node work on this window, or into empty space for the Add analysis menu there; drag an input onto another window to
-   take its data from there, or into empty space to unlink it; right-click a curve to unlink it.
+   take its data from there, or into empty space to unlink it; right-click a curve to unlink it. A calculation node
+   (Signal calculator window) takes any number of inputs: a window wired onto it is added to its formula.
    View: the wheel zooms at the pointer, Shift+wheel, the middle button or Space+drag pan, Fit (F) shows everything;
    the tree runs left to right or top to bottom, compact or not, with pictures of the windows in the nodes or icons
    (hover an icon for its picture); a branch folds into its node (± box, "+N" hidden windows).
@@ -142,7 +143,7 @@
     return d && d.y ? String(d.y.length) : '';
   }
   // "3 (2592)" for analysis windows, the title for sources and renamed windows
-  const labelOf = w => (!w.op || w.title !== w.opLabel) ? w.title : `${w.id} (${info(w)})`;
+  const labelOf = w => (!w.op || w.title !== w.opLabel) ? w.title : isCalc(w) ? `${w.id} ${w.title}` : `${w.id} (${info(w)})`;
   function fitText(t, max) {
     if (ctx.measureText(t).width <= max) return t;
     let a = Math.ceil(t.length / 2), b = Math.floor(t.length / 2);
@@ -153,14 +154,17 @@
   // (+0.5: a straight curve on the middle of a pixel row is sharp)
   const outPort = n => M.lr ? { x: n.x + M.nw, y: n.y + M.nh / 2 + 0.5 } : { x: n.x + M.nw / 2 + 0.5, y: n.y + M.nh + LABH };
   const inPort = n => M.lr ? { x: n.x, y: n.y + M.nh / 2 + 0.5 } : { x: n.x + M.nw / 2 + 0.5, y: n.y };
-  const hasIn = w => !!(w.op && OPS[w.op.type] && !OPS[w.op.type].multi); // the others take the windows named in their settings
+  const isCalc = w => !!(w.op && w.op.type === 'calc');
+  // calculation nodes take any number of inputs (the windows in their formula); the other windows with several inputs
+  // take the windows named in their settings
+  const hasIn = w => !!(w.op && OPS[w.op.type] && (!OPS[w.op.type].multi || isCalc(w)));
   const foldBox = n => ({ x: n.x + M.nw - 5, y: n.y + M.nh - 5, s: 11 });
   // why window c cannot take window p as its input (null: it can)
   function linkProblem(c, p) {
     if (!c.op) return 'A source window has no input';
     if (!hasIn(c)) return 'This window takes the windows named in its settings';
-    if (!(p.kind === '1d' || (c.op.type === 'slice' && p.kind === '3d'))) return 'Only a signal window can be the input';
-    for (let q = p; q; q = q.parents.length ? S.wins.get(q.parents[0]) : null) if (q === c) return 'That would make a loop';
+    if (!(p.kind === '1d' || (c.op.type === 'slice' && p.kind === '3d'))) return isCalc(c) ? 'Only a signal or spectrum window can be an input' : 'Only a signal window can be the input';
+    if (APP.dependsOn(p, c)) return 'That would make a loop';
     return null;
   }
   const linkedTo = (c, p) => c.parents.length === 1 && c.parents[0] === p.id;
@@ -369,8 +373,8 @@
     const a = d.end === 'out' ? outPort(n) : t ? outPort(t) : p, b = d.end === 'out' ? (t ? inPort(t) : p) : inPort(n);
     ctx.strokeStyle = d.problem ? '#c33' : t ? '#1a8f2e' : '#1883d7'; ctx.lineWidth = 2 * px; ctx.setLineDash(t ? [] : [5 * px, 3 * px]);
     strokeCurve(a, b, !!t && !d.problem); ctx.setLineDash([]);
-    const w = S.wins.get(d.id), tw = t && t.w;
-    const msg = tw ? (d.problem || (d.end === 'out' ? `${tw.label} works on ${w.label}` : `${w.label} works on ${tw.label}`))
+    const w = S.wins.get(d.id), tw = t && t.w, [cw, pw] = d.end === 'out' ? [tw, w] : [w, tw];
+    const msg = tw ? (d.problem || (isCalc(cw) ? `Add ${pw.label} to the calculation ${cw.label}…` : `${cw.label} works on ${pw.label}`))
       : d.end === 'out' ? 'Add analysis here…' : w.parents.length ? 'Unlink' : '';
     if (msg) { // below the pointer, clear of the node it points at
       const ty = t ? Math.max(d.y + 14, t.y + M.nh + LABH + 4) : d.y + 14;
@@ -392,6 +396,7 @@
   function linkTip(l) {
     const a = S.wins.get(l.from), b = S.wins.get(l.to); if (!a || !b) return '';
     if (l.kind === 'overlay') return `${a.label} shown as overlay in ${b.label}\nRight-click to remove the overlay`;
+    if (isCalc(b)) return `${a.label} is an input of the calculation ${b.label}${b.parents.length ? '' : ' (unlinked: keeps its last result)'}\nRight-click to replace it or edit the formula; drag an output onto ${b.label} to add an input`;
     return `${a.label} → ${b.label}${b.parents.length ? '' : ' (unlinked: keeps its last result)'}\nRight-click to ${b.parents.length ? 'unlink' : 'link again'}; drag the input of ${b.label} to another window to re-link it`;
   }
   function luminance(c) { const m = String(c).match(/\d+(\.\d+)?/g); return m ? (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) / 255 : 1; }
@@ -625,24 +630,54 @@
       .filter(it => it === '-' || !it.sub || it.sub.some(x => x !== '-')));
     return ADD_MENUS.map(l => UI.MENUS.find(m => m.label === l)).filter(Boolean).map(m => ({ label: m.label, sub: wrap(m.items) })).filter(m => m.sub.length);
   }
+  function placeAt(ws, place) { // new nodes at place (graph coordinates), one below the other
+    const k = posKey();
+    ws.forEach((x, i) => {
+      const o = i * M.ord;
+      x.display[k] = M.lr ? { x: snapV(Math.max(0, place.x)), y: snapV(Math.max(0, place.y - M.nh / 2 + o)) } : { x: snapV(Math.max(0, place.x - M.nw / 2 + o)), y: snapV(Math.max(0, place.y)) };
+    });
+  }
   async function addTo(w, run, place) {
     const before = new Set(S.wins.keys());
     if (w.display.cwFolded) delete w.display.cwFolded; // show what was added
     APP.activate(w); await run();
     if (!place) return;
-    const made = [...S.wins.values()].filter(x => !before.has(x.id) && x.parents.includes(w.id)), k = posKey();
-    made.forEach((x, i) => {
-      const o = i * M.ord;
-      x.display[k] = M.lr ? { x: snapV(Math.max(0, place.x)), y: snapV(Math.max(0, place.y - M.nh / 2 + o)) } : { x: snapV(Math.max(0, place.x - M.nw / 2 + o)), y: snapV(Math.max(0, place.y)) };
-    });
+    placeAt([...S.wins.values()].filter(x => !before.has(x.id) && x.parents.includes(w.id)), place);
     refresh();
   }
+  // Calculation nodes: a Signal calculator window with ins as its first inputs, at place if given
+  async function addCalc(ins, place) {
+    ins.forEach(w => { delete w.display.cwFolded; });
+    const c = await UI.calculatorDialog(ins); if (!c) return;
+    if (place) placeAt([c], place);
+    refresh();
+  }
+  const calcDialog = (c, title, expr) => UI.dialog({ title, intro: 'Windows: ' + [...S.wins.values()].filter(w => w.kind === '1d' && w !== c).map(w => `${w.label} = ${w.title}`).join('   ·   '),
+    fields: [{ key: 'expr', label: 'Expression', type: 'textarea', rows: 3, wide: true, value: expr }, { type: 'info', label: 'Functions: ' + EXPR.FUNCTIONS.join(', ') }],
+    validate: v => APP.calcProblem(v.expr, c), ok: 'Apply' });
+  async function editCalc(c) {
+    const v = await calcDialog(c, 'Calculation – ' + c.label, c.op.params.expr); if (!v) return;
+    APP.setCalc(c, v.expr); refresh();
+  }
+  async function addInput(c, p) { // p wired into calculation node c: the formula gets p, to be edited before it applies
+    const v = await calcDialog(c, `Add ${p.label} to the calculation ${c.label}`, `${c.op.params.expr} + ${p.label}`); if (!v) return;
+    APP.setCalc(c, v.expr); toast(`${c.label} = ${v.expr}`); refresh();
+  }
+  const refRe = w => new RegExp(`\\bW${w.id}\\b`, 'gi');
+  function replaceInput(c, a, b) { // every Wa in the formula of c becomes Wb
+    const e = APP.calcProblem(c.op.params.expr.replace(refRe(a), b.label), c); if (e) throw new Error(e + '.');
+    APP.setCalc(c, c.op.params.expr.replace(refRe(a), b.label)); toast(`${c.label} = ${c.op.params.expr}`); refresh();
+  }
+  const relinkCalc = c => { APP.setCalc(c, c.op.params.expr); refresh(); }; // an unlinked calculation: to its formula's windows again
   function addMenuAt(w, e, place) { // after the click that ends the drag, which would close the menu
     APP.activate(w); const x = e.clientX, y = e.clientY;
-    setTimeout(() => UI.popupMenu([{ label: `Add to ${w.label}:`, en: () => false }, '-', ...addItems(w, place)], null, x, y), 0);
+    setTimeout(() => UI.popupMenu([{ label: `Add to ${w.label}:`, en: () => false }, '-',
+      { label: 'Calculation node…', en: () => w.kind === '1d', run: () => addCalc([w], place) }, '-', ...addItems(w, place)], null, x, y), 0);
   }
   function nodeItems(w) { // on top of the window's own menu
     return [{ label: 'Add analysis', sub: addItems(w, null) },
+      { label: 'Add calculation node…', en: () => w.kind === '1d', run: () => addCalc([w], null) },
+      ...(isCalc(w) ? [{ label: 'Edit the calculation…', run: () => editCalc(w) }] : []),
       ...(nkids.get(w.id) ? [{ label: w.display.cwFolded ? 'Unfold branch' : 'Fold branch', run: () => setFold([w], !w.display.cwFolded) }] : []),
       '-', ...renameItems(w)];
   }
@@ -650,9 +685,14 @@
     const a = S.wins.get(l.from), b = S.wins.get(l.to); if (!a || !b) return [];
     const go = w => ({ label: `Go to ${w.label} – ${w.title}`, run: () => { if (w.display.hidden) setHidden([w], false); APP.activate(w); } });
     if (l.kind === 'overlay') return [{ label: `Remove overlay ${a.label} from ${b.label}`, run: () => { b.display.overlays = (b.display.overlays || []).filter(o => o !== a.id); APP.requestRender(b); APP.emit(); } }, '-', go(a), go(b)];
-    return [
-      b.parents.length ? { label: hasIn(b) ? `Unlink ${b.label} from ${a.label}` : `Unlink ${b.label} from its inputs`, run: () => { APP.unlink(b); toast(b.label + ' unlinked – it keeps its last result'); } }
-        : { label: `Link ${b.label} to ${a.label} again`, en: () => hasIn(b), run: () => { const e = linkProblem(b, a); if (e) throw new Error(e); APP.link(b, a); } },
+    const calc = isCalc(b) ? [{ label: `Replace ${a.label} in the calculation with`, sub: (() => {
+      const ws = [...S.wins.values()].filter(w => w !== a && w !== b && w.kind === '1d');
+      return ws.length ? ws.map(w => ({ label: `${w.label} – ${w.title}`, en: () => !linkProblem(b, w), run: () => replaceInput(b, a, w) })) : [{ label: 'No other signal windows', en: () => false }];
+    })() }, { label: `Edit the calculation of ${b.label}…`, run: () => editCalc(b) }, '-'] : [];
+    return [...calc,
+      b.parents.length ? { label: hasIn(b) && !isCalc(b) ? `Unlink ${b.label} from ${a.label}` : `Unlink ${b.label} from its inputs`, run: () => { APP.unlink(b); toast(b.label + ' unlinked – it keeps its last result'); } }
+        : { label: isCalc(b) ? `Link ${b.label} to its inputs again` : `Link ${b.label} to ${a.label} again`, en: () => hasIn(b),
+          run: () => { if (isCalc(b)) return relinkCalc(b); const e = linkProblem(b, a); if (e) throw new Error(e); APP.link(b, a); } },
       '-', go(a), go(b)];
   }
   function hit(p, skip) { // the node under p (not one of skip: the nodes being dragged)
@@ -696,14 +736,16 @@
   function arrange(ws) { ws.forEach(w => { delete w.display[posKey()]; delete w.display[pickKey()]; }); refresh(); }
   const toggleSel = id => { const i = sel.indexOf(id); if (i >= 0) sel.splice(i, 1); else sel.push(id); };
   // a curve dropped: out → the window under the pointer works on this one, or the Add analysis menu there;
-  // in → this window works on the one under the pointer, or (empty space) is unlinked
+  // in → this window works on the one under the pointer, or (empty space) is unlinked. A calculation node gets
+  // the window as one more input of its formula.
   function dropWire(d, e) {
     const w = S.wins.get(d.id), t = d.target != null && S.wins.get(d.target); if (!w) return;
-    if (!d.moved) { if (d.end === 'out') addMenuAt(w, e, null); return; }
+    if (!d.moved) { if (d.end === 'out') addMenuAt(w, e, null); else if (isCalc(w)) return editCalc(w); return; }
     if (t) {
       const [c, p] = d.end === 'out' ? [t, w] : [w, t];
-      if (linkedTo(c, p)) return;
+      if (linkedTo(c, p) && !isCalc(c)) return;
       const e2 = linkProblem(c, p); if (e2) throw new Error(e2 + '.');
+      if (isCalc(c)) return addInput(c, p);
       APP.link(c, p); toast(`${c.label} now works on ${p.label}`); return;
     }
     if (d.end === 'out') addMenuAt(w, e, { x: d.x, y: d.y });
@@ -799,7 +841,7 @@
       if (w) { UI.windowMenu(w, null, e.clientX, e.clientY, nodeItems(w)); return; }
       const l = hitLink(p);
       if (l) UI.popupMenu(linkMenu(l), null, e.clientX, e.clientY);
-      else UI.popupMenu(selectionMenu(), null, e.clientX, e.clientY);
+      else UI.popupMenu(selectionMenu(p), null, e.clientX, e.clientY);
     });
     body.addEventListener('keydown', e => { // handled here only (Del would otherwise close the active window)
       const plain = !e.ctrlKey && !e.altKey && !e.metaKey;
@@ -934,11 +976,12 @@
     { label: 'Fold all branches', en: () => [...nkids.values()].some(Boolean), run: () => foldAll(true) },
     { label: 'Unfold all branches', en: () => [...S.wins.values()].some(w => w.display.cwFolded), run: () => foldAll(false) },
     { label: 'Fold selected branches', en: () => selW().some(w => nkids.get(w.id)), run: () => setFold(selW().filter(w => nkids.get(w.id)), true) }];
-  function selectionMenu() {
+  function selectionMenu(place) { // place: where the menu was opened (graph coordinates)
     const n = () => selW().length;
     return [
       { label: 'Rename selected window…', key: 'F2', en: () => n() === 1, run: () => startRename(selW()[0]) },
       { label: 'Add analysis (on all selected)', get sub() { const ws = selW(); return ws.length ? addItems(ws[0], null, ws) : [{ label: 'Select windows first', en: () => false }]; } },
+      { label: 'Add calculation node (selected signals as inputs)…', en: () => [...S.wins.values()].some(w => w.kind === '1d'), run: () => addCalc(sig1(), place) },
       { label: 'Graph view and layout', sub: viewItems() },
       '-',
       { label: 'Select all windows', key: 'Ctrl+A', run: selectAll },
@@ -983,7 +1026,7 @@
       '-',
       { label: 'Unlink selected windows', en: () => selW().some(w => w.parents.length), run: () => { selW().forEach(w => { if (w.parents.length) APP.unlink(w); }); refresh(); } },
       { label: 'Link selected windows to their parent again', en: () => selW().some(w => w.frozen && w.op && ups(w).length),
-        run: () => { selW().forEach(w => { const p = w.frozen && w.op && ups(w)[0]; if (p != null) APP.link(w, S.wins.get(p)); }); refresh(); } }
+        run: () => { selW().forEach(w => { const p = w.frozen && w.op && ups(w)[0]; if (p != null) { if (isCalc(w)) APP.setCalc(w, w.op.params.expr); else APP.link(w, S.wins.get(p)); } }); refresh(); } }
     ];
   }
 

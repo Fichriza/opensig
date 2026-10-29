@@ -100,7 +100,12 @@ generator writes a `.bat` file built on these commands.
   node makes that window work on this one (`APP.link`, checked first: no loops, a signal or spectrum as input, a 3D
   window only for cross sections), into empty space (or clicking it) opens the Add analysis menu there and places the
   new node at the drop point; dragging an input onto a node re-links it, into empty space unlinks it; right-clicking a
-  curve unlinks / relinks it or removes an overlay. **Add analysis** in a node's menu runs the Signal tools,
+  curve unlinks / relinks it or removes an overlay. **Calculation nodes** (Signal calculator windows, `f(x)`) take
+  any number of inputs: *Add calculation node* in the empty-space menu (the selected signals start the formula, the node
+  goes where you clicked), in a node's menu or at the top of the Add analysis menu of a dropped curve; an output
+  dropped on the node (or its input dropped on a window) opens the formula with that window added (`APP.setCalc`,
+  checked by `APP.calcProblem`: signals or spectra only, no loops); a curve's menu replaces that input in the formula
+  or edits it. **Add analysis** in a node's menu runs the Signal tools,
   Instruments, 3D tools and Scripts menus on that window (cursor, picker, view and settings entries left out); on all
   selected windows from the empty-space menu. **View:** wheel zooms at the pointer (25–300 %), Shift / Alt + wheel,
   middle-drag or Space-drag pan, Fit (F, double-click on empty space) keeps the whole graph in view at up to 100 %

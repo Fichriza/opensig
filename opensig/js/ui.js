@@ -512,19 +512,20 @@
     APP.openSignal(y, v.sampleRate, v.type === 'Sweep signal' ? `${v.sweepType} sweep ${v.sweepStart}–${v.sweepEnd} Hz` : /noise|Step|Constant/.test(v.type) ? v.type : `${v.type} ${v.frequency} Hz`, { type: 'generator', params: v });
   }
 
-  async function calculatorDialog() {
+  // inputs: the windows the formula starts with (Control Window calculation node); returns the new window
+  async function calculatorDialog(inputs) {
     const list = [...S.wins.values()].filter(w => w.kind === '1d');
     if (!list.length) throw new Error('Open at least one signal window first.');
+    const ins = (inputs || []).filter(w => w.kind === '1d'), first = S.active && S.active.kind === '1d' ? S.active : list[0];
     const examples = 'Examples:  W1 + W2   ·   2*W1 - 0.5   ·   abs(W1)^2   ·   sqrt(W1*W1 + W2*W2)   ·   xcorr(W1, W2)   ·   coherence(W1, W2, 1024)   ·   frfmag(W1, W2)   ·   dbr(W2, W1)';
     const v = await dialog({ title: 'Signal calculator', intro: 'Windows: ' + list.map(w => `${w.label} = ${w.title}`).join('   ·   '), fields: [
-      { key: 'expr', label: 'Expression', type: 'textarea', rows: 3, wide: true, value: (S.active && S.active.kind === '1d' ? S.active.label : list[0].label) + ' * 2' },
+      { key: 'expr', label: 'Expression', type: 'textarea', rows: 3, wide: true, value: ins.length > 1 ? ins.map(w => w.label).join(' + ') : (ins[0] || first).label + ' * 2' },
       { type: 'info', label: examples },
       { type: 'info', label: 'Functions: ' + EXPR.FUNCTIONS.join(', ') }],
-      validate: v => { try { const ast = EXPR.parse(v.expr); const r = EXPR.refs(ast); if (!r.size) return 'Reference at least one window (W1, W2, …)'; for (const n of r) if (!S.wins.get(n)) return `Window W${n} does not exist`; } catch (e) { return e.message; } return null; },
-      ok: 'Calculate' });
-    if (!v) return;
+      validate: v => APP.calcProblem(v.expr, null), ok: 'Calculate' });
+    if (!v) return null;
     const refs = [...EXPR.refs(EXPR.parse(v.expr))];
-    APP.createWindow({ kind: '1d', title: '= ' + v.expr, op: { type: 'calc', params: { expr: v.expr } }, parents: refs });
+    return APP.createWindow({ kind: '1d', title: '= ' + v.expr, op: { type: 'calc', params: { expr: v.expr } }, parents: refs });
   }
 
   async function addInstrument(name) {
@@ -618,12 +619,9 @@
       }
       if (t === 'calc') {
         const v = await dialog({ title: 'Edit calculator expression', fields: [{ key: 'expr', label: 'Expression', type: 'textarea', rows: 3, wide: true, value: w.op.params.expr }],
-          validate: v => { try { EXPR.parse(v.expr); } catch (e) { return e.message; } return null; } });
-        if (!v) return;
-        const refs = [...EXPR.refs(EXPR.parse(v.expr))];
-        if (refs.some(n => !S.wins.get(n))) throw new Error('Expression references a window that does not exist');
-        APP.unlink(w); w.frozen = false; w.parents = refs; refs.forEach(n => S.wins.get(n).children.add(w.id));
-        const named = w.title !== w.opLabel && w.title !== '= ' + w.op.params.expr; w.op.params.expr = v.expr; if (!named) w.title = '= ' + v.expr; w.updateTitle(); return APP.queueCompute(w);
+          validate: v => APP.calcProblem(v.expr, w) });
+        if (v) APP.setCalc(w, v.expr);
+        return;
       }
     }
     // Generic info dialog
@@ -956,7 +954,7 @@
       { label: 'Copy detected peaks', run: copyPeaks, en: hasPeaks },
       '-',
       { label: 'Signal generator…', run: generatorDialog },
-      { label: 'Signal calculator…', run: calculatorDialog }] },
+      { label: 'Signal calculator…', run: () => calculatorDialog() }] },
     { label: 'Instruments', items: [
       inst('Value at (with marker)…', 'Value at'), inst('Mean'), inst('Sum'), inst('Const (level marker)…', 'Const'), inst('Median value'), inst('Quantile value…', 'Quantile value'),
       inst('Standard deviation'), inst('Variance'), inst('Skewness'), inst('Kurtosis'), inst('RMS - normalized'), inst('RMS'), inst('RMS of a frequency range…', 'RMS of a frequency range'),
@@ -1298,7 +1296,7 @@
 
   /* ---------- Boot ---------- */
   const UI = { SHIFT_KEYS: { d: () => APP.toggleDark() }, dialog, confirmBox, toast, windowMenu, popupMenu, closeCtx, toggleTree, EXAMPLES, MENUS, openFile, guard, need, download, pickFiles, saveSignal, spectralFields, spectralValidate, cleanSpectral,
-    h, safeName, baseName, wsFileName, TOOLBAR, TOOLBAR_SIDE, TB, I, findItem, refreshToolbar: () => refreshToolbar(), importCsvText, csvDialog, csvOptions, properties, fftFilterDialog, iirFilterDialog, settingsDialog, HOSTED };
+    h, safeName, baseName, wsFileName, TOOLBAR, TOOLBAR_SIDE, TB, I, findItem, refreshToolbar: () => refreshToolbar(), importCsvText, csvDialog, csvOptions, properties, calculatorDialog, fftFilterDialog, iirFilterDialog, settingsDialog, HOSTED };
   root.UI = UI;
 
   function boot() {

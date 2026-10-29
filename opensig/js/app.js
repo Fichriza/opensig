@@ -224,6 +224,38 @@
     w.updateTitle(); queueCompute(w); emit();
   }
 
+  // window a uses window b, directly or through its inputs (a === b counts)
+  function dependsOn(a, b) {
+    const seen = new Set(), todo = [a];
+    while (todo.length) {
+      const w = todo.pop(); if (w === b) return true;
+      if (seen.has(w.id)) continue; seen.add(w.id);
+      for (const p of w.parents) { const pw = S.wins.get(p); if (pw) todo.push(pw); }
+    }
+    return false;
+  }
+  // why expr cannot be the formula of calculator window w (w: null for a new one); null: it can
+  function calcProblem(expr, w) {
+    let refs;
+    try { refs = EXPR.refs(EXPR.parse(expr)); } catch (e) { return e.message; }
+    if (!refs.size) return 'Reference at least one window (W1, W2, …)';
+    for (const n of refs) {
+      const r = S.wins.get(n);
+      if (!r) return `Window W${n} does not exist`;
+      if (r.kind !== '1d') return `W${n} is not a signal or spectrum window`;
+      if (w && dependsOn(r, w)) return r === w ? 'A calculation cannot use its own result' : `W${n} uses W${w.id} – that would make a loop`;
+    }
+    return null;
+  }
+  // a calculator window gets a new formula and is linked to the windows named in it
+  function setCalc(w, expr) {
+    const e = calcProblem(expr, w); if (e) throw new Error(e);
+    const refs = [...EXPR.refs(EXPR.parse(expr))], named = w.title !== w.opLabel;
+    unlink(w); w.frozen = false; w.formerParents = null; w.parents = refs; refs.forEach(n => S.wins.get(n).children.add(w.id));
+    w.op.params.expr = expr; if (!named) w.title = w.opLabel; w.state = {}; w.history = [];
+    w.updateTitle(); queueCompute(w); emit();
+  }
+
   /* ---------- Update engine ---------- */
   const queue = new Set(); let flushPending = false;
   // rAF batches updates per frame; the timeout keeps linked windows updating while the page is in the background.
@@ -1293,7 +1325,7 @@
   }
   function initTabs() { if (!curTab) selectTab(addTab()); }
 
-  root.APP = { S, Win, createWindow, derive, closeWindow, activate, link, unlink, queueCompute, recompute, requestRender, visibleData,
+  root.APP = { S, Win, createWindow, derive, closeWindow, activate, link, unlink, dependsOn, calcProblem, setCalc, queueCompute, recompute, requestRender, visibleData,
     setViewX, resetView, zoom, pan, fitX, extentX, arrange, organizeSoon, toggleMax, openSignal, openXY, copyVisible, replaceSourceData,
     playSound, playSilent, stopPlayback, startAcquisition, stopAcquisition, restartAcquisition, resetAcquisition, afterData, emit, serialize, loadWorkspace, toolFromWindow, applyTool,
     saveSettings, applyTheme, readTheme, isDark, toggleDark, setWindowStyle, WINDOW_STYLES, valueAt, related, peaksOf, setPeaks, onChange: f => S.listeners.add(f), DEFAULT_SETTINGS, isOpen,
